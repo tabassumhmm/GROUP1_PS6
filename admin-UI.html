@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Management System - Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--bg:#f6f8ff;--card:#ffffff;--accent:#6c63ff;--accent-2:#ff6584;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,Segoe UI,Roboto,Arial; margin:0; background:linear-gradient(180deg,#f6f8ff, #ffffff); color:#111}
+    header{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white;padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+    .brand{font-weight:700;letter-spacing:0.3px}
+    nav{display:flex;gap:8px;align-items:center}
+    nav a, nav button{background:transparent;border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    nav a:hover, nav button:hover{background:rgba(255,255,255,0.12)}
+    main{padding:20px;max-width:1200px;margin:18px auto}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+    .controls{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn.secondary{background:#eef2ff;color:var(--accent)}
+    .table-wrap{overflow:auto;border-radius:8px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #f2f4f7}
+    th{font-size:13px;color:var(--muted)}
+    .action-btn{padding:6px 8px;border-radius:8px;border:none;cursor:pointer}
+    .action-btn.edit{background:#fff3d6;color:#b45309;border:1px solid #fde68a}
+    .action-btn.del{background:#ffe1e6;color:#9b1c1c;border:1px solid #fecaca}
+    .search{flex:1}
+    input[type=text], select{padding:8px 10px;border-radius:8px;border:1px solid #e6e9ef;width:100%}
+    .right-col .small{font-size:13px;color:var(--muted)}
+    footer{max-width:1200px;margin:8px auto 28px;text-align:center;color:var(--muted)}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(7,9,21,0.4);z-index:60}
+    .modal.open{display:flex}
+    .modal-card{background:var(--card);padding:18px;border-radius:12px;max-width:720px;width:100%}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{font-size:13px;color:var(--muted)}
+
+    /* small screen */
+    @media(max-width:960px){
+      .grid{grid-template-columns:1fr}
+      nav{overflow:auto}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">FinManage — Admin</div>
+    <nav aria-label="Main navigation">
+      <button data-nav="home">Home</button>
+      <button data-nav="companies">Company Stock Management</button>
+      <button data-nav="investors">Investor Management</button>
+      <button data-nav="stocks">Stocks</button>
+      <button data-nav="audits">Audit Reports</button>
+      <button data-nav="trades">Trade Management</button>
+      <button data-nav="institutions">Institutions</button>
+      <button data-nav="logs">Logs</button>
+      <button data-nav="fraud">AI-Based Fraud Detection</button>
+      <button data-nav="price-monitor">Price Monitoring</button>
+      <button data-nav="prediction">Prediction of Stock Price</button>
+      <button data-nav="register">Register</button>
+      <button id="logoutBtn">Logout</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section id="content" class="card">
+        <!-- dynamic content inserted here -->
+      </section>
+
+      <aside class="right-col">
+        <div class="card small">
+          <h4>Quick actions</h4>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <button class="btn" id="quick-add-company">Add Company</button>
+            <button class="btn secondary" id="quick-seed">Reset Sample Data</button>
+            <div class="small">Signed in as <strong id="currentUser">admin</strong></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4>Overview</h4>
+          <p class="small">Total Companies: <span id="stat-companies">0</span></p>
+          <p class="small">Total Investors: <span id="stat-investors">0</span></p>
+          <p class="small">Total Stocks: <span id="stat-stocks">0</span></p>
+        </div>
+      </aside>
+    </div>
+
+    <div id="modal" class="modal" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <h3 id="modal-title">Add Item</h3>
+        <form id="modal-form">
+          <div id="modal-fields" class="form-grid">
+            <!-- fields go here -->
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button type="button" class="btn secondary" id="modal-cancel">Cancel</button>
+            <button type="submit" class="btn" id="modal-save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>Built with ❤️ — admin front-end.</footer>
+
+  <script>
+    // ======== App state & helpers ========
+    const state = {
+      view: 'home',
+      users: [],
+      companies: [],
+      investors: [],
+      stocks: [],
+      audits: [],
+      trades: [],
+      institutions: [],
+      logs: [],
+      frauds: [],
+      priceMonitors: [],
+      predictions: [],
+      editing: null,
+      editingType: null
+    };
+
+    // localStorage persistence
+    function loadState(){
+      try{
+        const raw = localStorage.getItem('fin_state');
+        if(raw){
+          const parsed = JSON.parse(raw);
+          Object.assign(state, parsed);
+        }
+      }catch(e){console.error('load error',e)}
+    }
+    function saveState(){
+      localStorage.setItem('fin_state', JSON.stringify({
+        users: state.users,
+        companies: state.companies,
+        investors: state.investors,
+        stocks: state.stocks,
+        audits: state.audits,
+        trades: state.trades,
+        institutions: state.institutions,
+        logs: state.logs,
+        frauds: state.frauds,
+        priceMonitors: state.priceMonitors,
+        predictions: state.predictions
+      }))
+      refreshStats();
+    }
+
+    function id(prefix='id'){return prefix + Math.random().toString(36).slice(2,9)}
+
+    // ===== Sample seed data =====
+    function seed(){
+      state.users = [{id:'admin',name:'Administrator',role:'admin'}];
+      state.companies = [
+        {name:'Acme Corp',sector:'Manufacturing',regNo:'C-1001',contact:'acme@example.com'}
+      ];
+      state.institutions = [
+        {name:'Finance Bank',license:'LN-3421',type:'Bank'}
+      ];
+      state.investors = [
+        {investorID:'INV-001',name:'John Doe',accountType:'Individual',contact:'john@example.com',companyID:state.companies[0].regNo}
+      ];
+      state.stocks = [
+        {stockID:'STK-01',companyID:state.companies[0].regNo,totalShares:100000,currentPrice:12.34}
+      ];
+      state.audits = [
+        {auditDate:'2025-10-20',auditor:'Rina Ahmed',institutionReg:state.institutions[0].license,companiesID:state.companies[0].regNo}
+      ];
+      state.trades = [
+        {tradeID:'TRD-100',participants:'John Doe ↔ Acme',assetType:'Shares',timestamp:new Date().toISOString(),tradeStatus:'Completed',institutionReg:state.institutions[0].license}
+      ];
+      state.logs = [
+        {time:new Date().toISOString(),user:'admin',action:'Seeded sample data'}
+      ];
+      state.frauds = [
+        {id:'F-1',companyID:state.companies[0].regNo,description:'Unusual transfer',riskScore:87,detected:new Date().toISOString()}
+      ];
+      state.priceMonitors = [
+        {id:'PM-1',companyID:state.companies[0].regNo,currentPrice:12.34,observed:new Date().toISOString()}
+      ];
+      state.predictions = [
+        {id:'P-1',companyID:state.companies[0].regNo,predictedPrice:15.0,model:'LSTM',date:new Date().toISOString()}
+      ];
+      saveState();
+      render();
+    }
+
+    // ===== UI rendering =====
+    const content = document.getElementById('content');
+
+    function render(){
+      document.querySelectorAll('nav button[data-nav]').forEach(b=>b.classList.toggle('active', b.dataset.nav===state.view))
+      switch(state.view){
+        case 'home': renderHome(); break;
+        case 'companies': renderCompanies(); break;
+        case 'investors': renderInvestors(); break;
+        case 'stocks': renderStocks(); break;
+        case 'audits': renderAudits(); break;
+        case 'trades': renderTrades(); break;
+        case 'institutions': renderInstitutions(); break;
+        case 'logs': renderLogs(); break;
+        case 'fraud': renderFraud(); break;
+        case 'price-monitor': renderPriceMonitor(); break;
+        case 'prediction': renderPrediction(); break;
+        case 'register': renderRegister(); break;
+        default: renderHome();
+      }
+      saveState();
+    }
+
+    function tplTable(title, headers, rowsHtml, type){
+      return `
+        <h2>${title}</h2>
+        <div class="controls">
+          <input class="search" placeholder="Search ${title}..." data-search-for="${type}">
+          <button class="btn" data-add="${type}">Add</button>
+          <button class="btn secondary" data-seed="${type}">Reset Sample</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+            <tbody data-body-for="${type}">
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `
+    }
+
+    // -- Home view with Chart
+    function renderHome(){
+      content.innerHTML = `
+        <h2>Dashboard</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <div class="card" style="flex:1 1 60%">
+            <h3>Stock Price Chart (sample)</h3>
+            <canvas id="homeChart" height="160"></canvas>
+          </div>
+          <div class="card" style="flex:1 1 36%">
+            <h3>Summary</h3>
+            <p class="small">This dashboard is a front-end demo using localStorage as a mock DB.</p>
+            <p class="small">Use the nav to view and manage tables. All buttons work locally.</p>
+          </div>
+        </div>
+      `;
+
+      // render chart with sample or real stock data from state.stocks
+      const ctx = document.getElementById('homeChart');
+      const labels = ['Day -6','Day -5','Day -4','Day -3','Day -2','Day -1','Today'];
+      const dataPoints = labels.map((_,i)=>{ return (state.stocks[0]?.currentPrice || 10) * (1 + (Math.sin(i+1)/20)) });
+      new Chart(ctx,{
+        type:'line',
+        data:{labels, datasets:[{label:'Sample Stock Price',data:dataPoints,fill:false}]},
+        options:{responsive:true,plugins:{legend:{display:false}}}
+      });
+    }
+
+    // -- Generic row render helpers
+    function renderCompanies(){
+      const rows = state.companies.map(c=>`<tr>
+        <td>${c.name}</td><td>${c.sector}</td><td>${c.regNo}</td><td>${c.contact}</td>
+        <td>
+          <button class="action-btn edit" data-edit="companies" data-id="${c.regNo}">Edit</button>
+          <button class="action-btn del" data-delete="companies" data-id="${c.regNo}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Companies',['Name','Sector','Registration No','Contact','Actions'],rows,'companies');
+    }
+    function renderInvestors(){
+      const rows = state.investors.map(i=>`<tr>
+        <td>${i.investorID}</td><td>${i.name}</td><td>${i.accountType}</td><td>${i.contact}</td><td>${i.companyID || ''}</td>
+        <td>
+          <button class="action-btn edit" data-edit="investors" data-id="${i.investorID}">Edit</button>
+          <button class="action-btn del" data-delete="investors" data-id="${i.investorID}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Investors',['Investor ID','Name','Account Type','Contact','CompanyID','Actions'],rows,'investors');
+    }
+    function renderStocks(){
+      const rows = state.stocks.map(s=>`<tr>
+        <td>${s.stockID}</td><td>${s.companyID}</td><td>${s.totalShares}</td><td>${s.currentPrice}</td>
+        <td>
+          <button class="action-btn edit" data-edit="stocks" data-id="${s.stockID}">Edit</button>
+          <button class="action-btn del" data-delete="stocks" data-id="${s.stockID}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Stocks',['Stock ID','Company ID','Total Shares','Current Price','Actions'],rows,'stocks');
+    }
+    function renderAudits(){
+      const rows = state.audits.map(a=>`<tr>
+        <td>${a.auditDate}</td><td>${a.auditor}</td><td>${a.institutionReg}</td><td>${a.companiesID}</td>
+        <td>
+          <button class="action-btn edit" data-edit="audits" data-id="${a.auditDate}">Edit</button>
+          <button class="action-btn del" data-delete="audits" data-id="${a.auditDate}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Audit Reports',['Audit Date','Auditor','Institution ID','CompaniesID','Actions'],rows,'audits');
+    }
+    function renderTrades(){
+      const rows = state.trades.map(t=>`<tr>
+        <td>${t.tradeID}</td><td>${t.participants}</td><td>${t.assetType}</td><td>${t.timestamp}</td><td>${t.tradeStatus}</td><td>${t.institutionReg}</td>
+        <td>
+          <button class="action-btn edit" data-edit="trades" data-id="${t.tradeID}">Edit</button>
+          <button class="action-btn del" data-delete="trades" data-id="${t.tradeID}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Trade Management',['Trade ID','Participants','Asset Type','Timestamp','Status','Institution Reg','Actions'],rows,'trades');
+    }
+    function renderInstitutions(){
+      const rows = state.institutions.map(i=>`<tr>
+        <td>${i.name}</td><td>${i.license}</td><td>${i.type}</td>
+        <td>
+          <button class="action-btn edit" data-edit="institutions" data-id="${i.license}">Edit</button>
+          <button class="action-btn del" data-delete="institutions" data-id="${i.license}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Institutions',['Name','License Number','Type','Actions'],rows,'institutions');
+    }
+    function renderLogs(){
+      const rows = state.logs.map(l=>`<tr><td>${l.time}</td><td>${l.user}</td><td>${l.action}</td></tr>`).join('')
+      content.innerHTML = tplTable('Logs',['Time','User','Action'],rows,'logs');
+    }
+    function renderFraud(){
+      const rows = state.frauds.map(f=>`<tr>
+        <td>${f.id}</td><td>${f.companyID}</td><td>${f.description}</td><td>${f.riskScore}</td><td>${f.detected}</td>
+        <td>
+          <button class="action-btn edit" data-edit="frauds" data-id="${f.id}">Edit</button>
+          <button class="action-btn del" data-delete="frauds" data-id="${f.id}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('AI-Based Fraud Alerts',['ID','CompanyID','Description','Risk Score','Detected At','Actions'],rows,'fraud');
+    }
+    function renderPriceMonitor(){
+      const rows = state.priceMonitors.map(p=>`<tr>
+        <td>${p.id}</td><td>${p.companyID}</td><td>${p.currentPrice}</td><td>${p.observed}</td>
+        <td>
+          <button class="action-btn edit" data-edit="priceMonitors" data-id="${p.id}">Edit</button>
+          <button class="action-btn del" data-delete="priceMonitors" data-id="${p.id}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Price Monitoring',['ID','CompanyID','Current Price','Observed At','Actions'],rows,'price-monitor');
+    }
+    function renderPrediction(){
+      const rows = state.predictions.map(p=>`<tr>
+        <td>${p.id}</td><td>${p.companyID}</td><td>${p.predictedPrice}</td><td>${p.model}</td><td>${p.date}</td>
+        <td>
+          <button class="action-btn edit" data-edit="predictions" data-id="${p.id}">Edit</button>
+          <button class="action-btn del" data-delete="predictions" data-id="${p.id}">Delete</button>
+        </td>
+      </tr>`).join('')
+      content.innerHTML = tplTable('Stock Price Predictions',['ID','CompanyID','Predicted Price','Model','Date','Actions'],rows,'prediction');
+    }
+    function renderRegister(){
+      content.innerHTML = `
+        <h2>Register New User</h2>
+        <form id="regForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><label>Name</label><input required name="name" type="text"></div>
+            <div><label>User ID</label><input required name="id" type="text" placeholder="unique id"></div>
+            <div><label>Role</label><input required name="role" type="text" value="user"></div>
+            <div><label>Email</label><input required name="email" type="text"></div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn secondary" type="reset">Reset</button>
+            <button class="btn" type="submit">Create</button>
+          </div>
+        </form>
+      `
+      document.getElementById('regForm').addEventListener('submit', e=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const newU = {id:fd.get('id'),name:fd.get('name'),role:fd.get('role'),email:fd.get('email')};
+        if(state.users.find(u=>u.id===newU.id)){alert('User ID already exists');return}
+        state.users.push(newU);
+        state.logs.push({time:new Date().toISOString(),user:newU.id,action:'Registered new user'});
+        saveState();
+        alert('User created');
+        state.view='home'; render();
+      })
+    }
+
+    // ===== Events & actions =====
+    document.querySelectorAll('nav button[data-nav]').forEach(b=>b.addEventListener('click', ()=>{
+      state.view = b.dataset.nav; render();
+    }))
+
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      // show a logged out page
+      content.innerHTML = `<div class="card"><h2>Logged out</h2><p>You have been logged out.</p></div>`;
+      state.logs.push({time:new Date().toISOString(),user:state.users[0]?.id||'unknown',action:'Logged out'});
+      saveState();
+    })
+
+    document.getElementById('quick-add-company').addEventListener('click', ()=>{ openModalFor('companies') })
+    document.getElementById('quick-seed').addEventListener('click', ()=>{ if(confirm('Reset sample data? This will overwrite current data.')) seed(); })
+
+    // delegate add/edit/delete/search
+    document.addEventListener('click', (e)=>{
+      const add = e.target.closest('[data-add]');
+      if(add){ openModalFor(add.dataset.add); return }
+      const edit = e.target.closest('[data-edit]');
+      if(edit){ openEdit(edit.dataset.edit, edit.dataset.id); return }
+      const del = e.target.closest('[data-delete]');
+      if(del){ doDelete(del.dataset.delete, del.dataset.id); return }
+      const seedBtn = e.target.closest('[data-seed]');
+      if(seedBtn){ if(confirm('Reset sample?')) seed(); return }
+    })
+
+    document.addEventListener('input', (e)=>{
+      if(e.target.matches('[data-search-for]')){
+        const type = e.target.dataset.searchFor;
+        const q = e.target.value.toLowerCase();
+        const body = document.querySelector(`[data-body-for=\"${type}\"]`);
+        if(!body) return;
+        for(const r of Array.from(body.rows)){
+          r.style.display = r.innerText.toLowerCase().includes(q)?'':'none'
+        }
+      }
+    })
+
+    function doDelete(type,id){
+      if(!confirm('Delete this item?')) return;
+      switch(type){
+        case 'companies': state.companies = state.companies.filter(c=>c.regNo!==id); break;
+        case 'investors': state.investors = state.investors.filter(i=>i.investorID!==id); break;
+        case 'stocks': state.stocks = state.stocks.filter(s=>s.stockID!==id); break;
+        case 'audits': state.audits = state.audits.filter(a=>a.auditDate!==id); break;
+        case 'trades': state.trades = state.trades.filter(t=>t.tradeID!==id); break;
+        case 'institutions': state.institutions = state.institutions.filter(i=>i.license!==id); break;
+        case 'logs': state.logs = state.logs.filter(l=>l.time!==id); break;
+        case 'frauds': state.frauds = state.frauds.filter(f=>f.id!==id); break;
+        case 'priceMonitors': state.priceMonitors = state.priceMonitors.filter(p=>p.id!==id); break;
+        case 'predictions': state.predictions = state.predictions.filter(p=>p.id!==id); break;
+      }
+      state.logs.push({time:new Date().toISOString(),user:state.users[0]?.id||'admin',action:`Deleted ${type} ${id}`});
+      saveState(); render();
+    }
+
+    // ===== Modal logic (add/edit) =====
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalFields = document.getElementById('modal-fields');
+    const modalForm = document.getElementById('modal-form');
+    document.getElementById('modal-cancel').addEventListener('click', ()=>closeModal())
+
+    function openModalFor(type){
+      state.editing = null; state.editingType = type;
+      modalTitle.textContent = `Add ${niceName(type)}`;
+      modalFields.innerHTML = formFieldsFor(type);
+      modal.classList.add('open');
+    }
+    function openEdit(type,id){
+      state.editingType = type; state.editing = id;
+      modalTitle.textContent = `Edit ${niceName(type)}`;
+      modalFields.innerHTML = formFieldsFor(type,true,id);
+      modal.classList.add('open');
+    }
+    function closeModal(){ modal.classList.remove('open'); state.editing=null; state.editingType=null }
+
+    modalForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const values = {};
+      for(const [k,v] of fd.entries()) values[k]=v;
+
+      const t = state.editingType;
+      if(state.editing){ // update
+        switch(t){
+          case 'companies': { const idx = state.companies.findIndex(x=>x.regNo===state.editing); if(idx>-1) state.companies[idx] = {...state.companies[idx],...values}; break }
+          case 'investors': { const idx = state.investors.findIndex(x=>x.investorID===state.editing); if(idx>-1) state.investors[idx] = {...state.investors[idx],...values}; break }
+          case 'stocks': { const idx = state.stocks.findIndex(x=>x.stockID===state.editing); if(idx>-1) state.stocks[idx] = {...state.stocks[idx],...values}; break }
+          case 'audits': { const idx = state.audits.findIndex(x=>x.auditDate===state.editing); if(idx>-1) state.audits[idx] = {...state.audits[idx],...values}; break }
+          case 'trades': { const idx = state.trades.findIndex(x=>x.tradeID===state.editing); if(idx>-1) state.trades[idx] = {...state.trades[idx],...values}; break }
+          case 'institutions': { const idx = state.institutions.findIndex(x=>x.license===state.editing); if(idx>-1) state.institutions[idx] = {...state.institutions[idx],...values}; break }
+          case 'frauds': { const idx = state.frauds.findIndex(x=>x.id===state.editing); if(idx>-1) state.frauds[idx] = {...state.frauds[idx],...values}; break }
+          case 'priceMonitors': { const idx = state.priceMonitors.findIndex(x=>x.id===state.editing); if(idx>-1) state.priceMonitors[idx] = {...state.priceMonitors[idx],...values}; break }
+          case 'predictions': { const idx = state.predictions.findIndex(x=>x.id===state.editing); if(idx>-1) state.predictions[idx] = {...state.predictions[idx],...values}; break }
+        }
+        state.logs.push({time:new Date().toISOString(),user:state.users[0]?.id||'admin',action:`Edited ${t} ${state.editing}`});
+      } else { // create
+        switch(t){
+          case 'companies': state.companies.push({...values,regNo:values.regNo||id('C-')}); break;
+          case 'investors': state.investors.push({...values,investorID:values.investorID||id('INV-')}); break;
+          case 'stocks': state.stocks.push({...values,stockID:values.stockID||id('STK-')}); break;
+          case 'audits': state.audits.push({...values}); break;
+          case 'trades': state.trades.push({...values,tradeID:values.tradeID||id('TRD-'),timestamp:values.timestamp||new Date().toISOString()}); break;
+          case 'institutions': state.institutions.push({...values,license:values.license||id('LN-')}); break;
+          case 'frauds': state.frauds.push({...values,id:values.id||id('F-'),detected:values.detected||new Date().toISOString()}); break;
+          case 'priceMonitors': state.priceMonitors.push({...values,id:values.id||id('PM-')}); break;
+          case 'predictions': state.predictions.push({...values,id:values.id||id('P-'),date:values.date||new Date().toISOString()}); break;
+        }
+        state.logs.push({time:new Date().toISOString(),user:state.users[0]?.id||'admin',action:`Created ${t}`});
+      }
+      saveState(); closeModal(); render();
+    })
+
+    function niceName(t){
+      const map = {companies:'Company',investors:'Investor',stocks:'Stock',audits:'Audit Report',trades:'Trade',institutions:'Institution',frauds:'Fraud Alert',priceMonitors:'Price Monitor',predictions:'Prediction'};
+      return map[t]||t;
+    }
+
+    function formFieldsFor(type,isEdit=false,id){
+      const val = (k)=>'';
+      if(isEdit && id){
+        let item;
+        switch(type){
+          case 'companies': item = state.companies.find(x=>x.regNo===id); break;
+          case 'investors': item = state.investors.find(x=>x.investorID===id); break;
+          case 'stocks': item = state.stocks.find(x=>x.stockID===id); break;
+          case 'audits': item = state.audits.find(x=>x.auditDate===id); break;
+          case 'trades': item = state.trades.find(x=>x.tradeID===id); break;
+          case 'institutions': item = state.institutions.find(x=>x.license===id); break;
+          case 'frauds': item = state.frauds.find(x=>x.id===id); break;
+          case 'priceMonitors': item = state.priceMonitors.find(x=>x.id===id); break;
+          case 'predictions': item = state.predictions.find(x=>x.id===id); break;
+        }
+        if(item){
+          return Object.entries(item).filter(([k])=>k!=='id').map(([k,v])=>`<div><label>${k}</label><input name="${k}" value="${v}"></div>`).join('')
+        }
+      }
+      switch(type){
+        case 'companies': return `
+          <div><label>Name</label><input name="name" required></div>
+          <div><label>Sector</label><input name="sector"></div>
+          <div><label>Registration No</label><input name="regNo"></div>
+          <div><label>Contact</label><input name="contact"></div>
+        `
+        case 'investors': return `
+          <div><label>Investor ID</label><input name="investorID"></div>
+          <div><label>Name</label><input name="name"></div>
+          <div><label>Account Type</label><input name="accountType"></div>
+          <div><label>Contact</label><input name="contact"></div>
+          <div style="grid-column:1/3"><label>Company ID (FK)</label><input name="companyID"></div>
+        `
+        case 'stocks': return `
+          <div><label>Stock ID</label><input name="stockID"></div>
+          <div><label>Company ID</label><input name="companyID"></div>
+          <div><label>Total Shares</label><input name="totalShares" type="text"></div>
+          <div><label>Current Price</label><input name="currentPrice" type="text"></div>
+        `
+        case 'audits': return `
+          <div><label>Audit Date</label><input name="auditDate" type="text" placeholder="YYYY-MM-DD"></div>
+          <div><label>Auditor</label><input name="auditor"></div>
+          <div><label>Institution Reg</label><input name="institutionReg"></div>
+          <div><label>CompaniesID (FK)</label><input name="companiesID"></div>
+        `
+        case 'trades': return `
+          <div><label>Trade ID</label><input name="tradeID"></div>
+          <div><label>Participants</label><input name="participants"></div>
+          <div><label>Asset Type</label><input name="assetType"></div>
+          <div><label>Timestamp</label><input name="timestamp" value="${new Date().toISOString()}"></div>
+          <div><label>Trade Status</label><input name="tradeStatus"></div>
+          <div style="grid-column:1/3"><label>Institution Registration Number</label><input name="institutionReg"></div>
+        `
+        case 'institutions': return `
+          <div><label>Name</label><input name="name"></div>
+          <div><label>License</label><input name="license"></div>
+          <div style="grid-column:1/3"><label>Type</label><input name="type"></div>
+        `
+        case 'frauds': return `
+          <div><label>ID</label><input name="id"></div>
+          <div><label>Company ID</label><input name="companyID"></div>
+          <div style="grid-column:1/3"><label>Description</label><input name="description"></div>
+          <div><label>Risk Score</label><input name="riskScore"></div>
+        `
+        case 'priceMonitors': return `
+          <div><label>ID</label><input name="id"></div>
+          <div><label>Company ID</label><input name="companyID"></div>
+          <div style="grid-column:1/3"><label>Current Price</label><input name="currentPrice"></div>
+        `
+        case 'predictions': return `
+          <div><label>ID</label><input name="id"></div>
+          <div><label>Company ID</label><input name="companyID"></div>
+          <div><label>Predicted Price</label><input name="predictedPrice"></div>
+          <div><label>Model</label><input name="model" placeholder="e.g. LSTM"></div>
+        `
+      }
+      return `<div><label>Value</label><input name="value"></div>`
+    }
+
+    // ===== Stats =====
+    function refreshStats(){
+      document.getElementById('stat-companies').innerText = state.companies.length;
+      document.getElementById('stat-investors').innerText = state.investors.length;
+      document.getElementById('stat-stocks').innerText = state.stocks.length;
+      document.getElementById('currentUser').innerText = state.users[0]?.id || 'admin';
+    }
+
+    // ===== Init =====
+    loadState();
+    if(!state.users || state.users.length===0) seed();
+    refreshStats();
+    render();
+  </script>
+</body>
+</html>
