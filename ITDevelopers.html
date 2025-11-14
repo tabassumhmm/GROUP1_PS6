@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Developer Cyber Panel</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Consolas, monospace;
+            background: #050505;
+            color: #00ff6a;
+            overflow-x: hidden;
+        }
+
+        /* Cyber Grid Background */
+        body::before {
+            content: "";
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: linear-gradient(#0a0a0a 1px, transparent 1px),
+                        linear-gradient(90deg, #0a0a0a 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
+            padding: 15px;
+            background: #000;
+            border-bottom: 2px solid #00ff6a;
+            box-shadow: 0 0 15px #00ff6a;
+        }
+        .navbar a {
+            color: #00ff9d;
+            margin-right: 25px;
+            text-decoration: none;
+            font-size: 18px;
+            transition: 0.3s;
+        }
+        .navbar a:hover {
+            color: #ffffff;
+            text-shadow: 0 0 8px #00ff8a;
+        }
+
+        /* Content */
+        .container {
+            padding: 20px;
+        }
+        .page { display: none; }
+        #dashboardPage { display: block; }
+
+        /* Dashboard Cards */
+        .card {
+            width: 30%;
+            background: #000;
+            display: inline-block;
+            margin-right: 2%;
+            padding: 20px;
+            border: 2px solid #00ff6a;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #00ff6a;
+            transition: 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00ff9d;
+        }
+
+        h2, h3 {
+            color: #00ff6a;
+            text-shadow: 0 0 10px #00ff6a;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            background: #000;
+            border-collapse: collapse;
+            margin-top: 15px;
+            box-shadow: 0 0 10px #00ff6a;
+        }
+        th, td {
+            border: 1px solid #00ff6a;
+            padding: 10px;
+        }
+        th {
+            background: #003d1e;
+            text-shadow: 0 0 6px lime;
+        }
+
+        /* Buttons */
+        button {
+            padding: 7px 14px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #000;
+            font-weight: bold;
+        }
+        .add-btn { background: #00ff6a; }
+        .edit-btn { background: #00e6ff; }
+        .delete-btn { background: #ff0055; }
+        .search-input {
+            width: 220px;
+            padding: 8px;
+            border: 2px solid #00ff6a;
+            background: #000;
+            color: #00ff6a;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV BAR -->
+    <div class="navbar">
+        <a href="#" onclick="showPage('dashboardPage')">Dashboard</a>
+        <a href="#" onclick="showPage('logsPage')">System Logs</a>
+        <a href="#" onclick="showPage('errorPage')">Error Reports</a>
+        <a href="#" onclick="showPage('logoutPage')">Logout</a>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="container page" id="dashboardPage">
+        <h2>💻 Cyber Security Dashboard</h2>
+
+        <div class="card">
+            <h3>Active Errors</h3>
+            <p style="font-size: 35px;">12</p>
+        </div>
+
+        <div class="card">
+            <h3>System Alerts</h3>
+            <p style="font-size: 35px;">5</p>
+        </div>
+
+        <div class="card">
+            <h3>Total Logs</h3>
+            <p style="font-size: 35px;">265</p>
+        </div>
+
+        <canvas id="errorChart" width="400" height="200"
+            style="margin-top:20px; background:#000; border:1px solid #00ff6a; border-radius:5px;"></canvas>
+    </div>
+
+    <!-- SYSTEM LOGS PAGE -->
+    <div class="container page" id="logsPage">
+        <h2>📝 System Logs</h2>
+
+        <input type="text" class="search-input" placeholder="Search logs..." onkeyup="searchLogs(this.value)">
+        <button class="add-btn" onclick="addLog()">Add Log</button>
+
+        <table id="logsTable">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Message</th>
+                    <th>Severity</th>
+                    <th>Timestamp</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>101</td>
+                    <td>System boot completed</td>
+                    <td>Low</td>
+                    <td>2025-11-14 10:30</td>
+                    <td>
+                        <button class="edit-btn" onclick="editRow(this)">Edit</button>
+                        <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ERROR REPORT PAGE -->
+    <div class="container page" id="errorPage">
+        <h2>⚠ Error Reports</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Error ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Reported At</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>E-404</td>
+                    <td>Not Found</td>
+                    <td>Active</td>
+                    <td>2025-11-13</td>
+                </tr>
+                <tr>
+                    <td>E-500</td>
+                    <td>Server Crash</td>
+                    <td>Resolved</td>
+                    <td>2025-11-12</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- LOGOUT PAGE -->
+    <div class="container page" id="logoutPage">
+        <h2>🔒 You have been logged out.</h2>
+        <p>Stay safe, developer.</p>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
+
+        // Chart
+        const ctx = document.getElementById('errorChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Mon','Tue','Wed','Thu','Fri'],
+                datasets: [{
+                    label: 'Errors',
+                    data: [4, 6, 5, 8, 12],
+                    borderColor: '#00ff6a',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                scales: {
+                    x: { ticks: { color: '#00ff6a' }},
+                    y: { ticks: { color: '#00ff6a' }}
+                }
+            }
+        });
+
+        // Table actions
+        function deleteRow(btn) {
+            btn.parentElement.parentElement.remove();
+        }
+
+        function editRow(btn) {
+            let row = btn.parentElement.parentElement;
+            let newMsg = prompt("Enter new message:", row.cells[1].innerText);
+            if (newMsg) row.cells[1].innerText = newMsg;
+        }
+
+        function addLog() {
+            let id = prompt("Log ID:");
+            let msg = prompt("Message:");
+            let sev = prompt("Severity:");
+            let time = new Date().toLocaleString();
+
+            if (!id || !msg || !sev) return;
+
+            let table = document.querySelector("#logsTable tbody");
+            let row = table.insertRow();
+            row.innerHTML = `
+                <td>${id}</td>
+                <td>${msg}</td>
+                <td>${sev}</td>
+                <td>${time}</td>
+                <td>
+                    <button class="edit-btn" onclick="editRow(this)">Edit</button>
+                    <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+                </td>
+            `;
+        }
+
+        function searchLogs(val) {
+            let rows = document.querySelectorAll("#logsTable tbody tr");
+            rows.forEach(r => {
+                r.style.display = r.innerText.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+            });
+        }
+    </script>
+
+</body>
+</html>

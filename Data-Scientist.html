@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Scientist Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f0f2f5; color: #333; }
+    nav { background: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    nav button { margin-right: 10px; padding: 5px 10px; cursor: pointer; }
+    main { padding: 20px; }
+    section { margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+    th { background: #eee; }
+    .controls { margin-bottom: 10px; }
+    .controls input { padding: 4px; margin-right: 5px; }
+    .controls button { padding: 4px 8px; }
+    canvas { max-width: 100%; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div>Data Scientist Dashboard</div>
+  <div>
+    <button onclick="showSection('home')">Home</button>
+    <button onclick="showSection('priceHistory')">Price History</button>
+    <button onclick="showSection('predictions')">Predictions</button>
+    <button onclick="showSection('fraudAlerts')">Fraud Alerts</button>
+    <button onclick="fetchData()">Fetch Latest Data</button>
+  </div>
+</nav>
+
+<main>
+  <!-- Home Section -->
+  <section id="home">
+    <h2>Home — Overview</h2>
+    <canvas id="priceChart" height="150"></canvas>
+    <canvas id="volumeChart" height="150" style="margin-top:20px;"></canvas>
+  </section>
+
+  <!-- Price History Section -->
+  <section id="priceHistory" style="display:none;">
+    <h2>Price History</h2>
+    <div class="controls">
+      <input type="text" id="priceSearch" placeholder="Search by date or ID">
+      <button onclick="addPrice()">Add</button>
+    </div>
+    <table id="priceTable">
+      <thead>
+        <tr><th>ID</th><th>Date</th><th>Open</th><th>Close</th><th>High</th><th>Low</th><th>Volume</th><th>Actions</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Predictions Section -->
+  <section id="predictions" style="display:none;">
+    <h2>Predictions</h2>
+    <div class="controls">
+      <input type="text" id="predSearch" placeholder="Search by model or date">
+      <button onclick="addPrediction()">Add</button>
+    </div>
+    <table id="predTable">
+      <thead>
+        <tr><th>ID</th><th>Date</th><th>Predicted Close</th><th>Model</th><th>Accuracy</th><th>Actions</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Fraud Alerts Section -->
+  <section id="fraudAlerts" style="display:none;">
+    <h2>Fraud Alerts</h2>
+    <table id="fraudTable">
+      <thead>
+        <tr><th>ID</th><th>Investor ID</th><th>Company ID</th><th>Risk Score</th><th>Date</th><th>Notes</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+// Data arrays
+let priceHistory = [
+  { id: 1, date: '2025-11-01', open: 120, close: 125, high: 128, low: 119, volume: 54000 },
+  { id: 2, date: '2025-11-02', open: 125, close: 122, high: 127, low: 121, volume: 41000 }
+];
+
+let predictions = [
+  { id: 1, date: '2025-11-07', predicted_close: 139.2, model: 'XGBoost v1', accuracy: '90%' }
+];
+
+let fraudAlerts = [
+  { id: 1, investor_id: 'INV-1001', company_id: 'CMP-200', risk_score: 0.92, date: '2025-11-05', notes: 'Unusual spikes' }
+];
+
+function showSection(section) {
+  document.querySelectorAll('main section').forEach(s => s.style.display='none');
+  document.getElementById(section).style.display='block';
+}
+
+function renderPriceTable() {
+  const tbody = document.querySelector('#priceTable tbody');
+  tbody.innerHTML='';
+  priceHistory.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.id}</td><td>${row.date}</td><td>${row.open}</td><td>${row.close}</td><td>${row.high}</td><td>${row.low}</td><td>${row.volume}</td>
+                    <td><button onclick='editPrice(${row.id})'>Edit</button> <button onclick='deletePrice(${row.id})'>Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPredTable() {
+  const tbody = document.querySelector('#predTable tbody');
+  tbody.innerHTML='';
+  predictions.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.id}</td><td>${row.date}</td><td>${row.predicted_close}</td><td>${row.model}</td><td>${row.accuracy}</td>
+                    <td><button onclick='editPred(${row.id})'>Edit</button> <button onclick='deletePred(${row.id})'>Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderFraudTable() {
+  const tbody = document.querySelector('#fraudTable tbody');
+  tbody.innerHTML='';
+  fraudAlerts.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.id}</td><td>${r.investor_id}</td><td>${r.company_id}</td><td>${r.risk_score}</td><td>${r.date}</td><td>${r.notes}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function addPrice(){ let date=prompt('Date (YYYY-MM-DD)'), open=prompt('Open'), close=prompt('Close'), high=prompt('High'), low=prompt('Low'), volume=prompt('Volume');
+  const id=Math.max(...priceHistory.map(p=>p.id),0)+1;
+  priceHistory.push({id,date,open:Number(open),close:Number(close),high:Number(high),low:Number(low),volume:Number(volume)});
+  renderPriceTable(); updateCharts(); }
+function deletePrice(id){ if(confirm('Delete this record?')){ priceHistory=priceHistory.filter(p=>p.id!==id); renderPriceTable(); updateCharts(); } }
+function editPrice(id){ const p=priceHistory.find(p=>p.id===id); let date=prompt('Date',p.date), open=prompt('Open',p.open), close=prompt('Close',p.close), high=prompt('High',p.high), low=prompt('Low',p.low), volume=prompt('Volume',p.volume);
+  Object.assign(p,{date,open:Number(open),close:Number(close),high:Number(high),low:Number(low),volume:Number(volume)});
+  renderPriceTable(); updateCharts(); }
+
+function addPrediction(){ let date=prompt('Date'), predicted_close=prompt('Predicted Close'), model=prompt('Model'), accuracy=prompt('Accuracy');
+  const id=Math.max(...predictions.map(p=>p.id),0)+1; predictions.push({id,date,predicted_close:Number(predicted_close),model,accuracy}); renderPredTable(); }
+function deletePred(id){ if(confirm('Delete?')){ predictions=predictions.filter(p=>p.id!==id); renderPredTable(); } }
+function editPred(id){ const p=predictions.find(p=>p.id===id); let date=prompt('Date',p.date), predicted_close=prompt('Predicted Close',p.predicted_close), model=prompt('Model',p.model), accuracy=prompt('Accuracy',p.accuracy); Object.assign(p,{date,predicted_close:Number(predicted_close),model,accuracy}); renderPredTable(); }
+
+function fetchData(){
+  const lastPrice=priceHistory[priceHistory.length-1];
+  const nextId=Math.max(...priceHistory.map(p=>p.id),0)+1;
+  const nextClose=Math.round((lastPrice.close + (Math.random()-0.5)*6)*100)/100;
+  const newPrice={id:nextId,date:`2025-11-${7+priceHistory.length}`,open:Math.round((nextClose-2)*100)/100,close:nextClose,high:Math.round((nextClose+2)*100)/100,low:Math.round((nextClose-3)*100)/100,volume:Math.round(30000+Math.random()*90000)};
+  priceHistory.push(newPrice);
+
+  const newAlert={id:Math.max(...fraudAlerts.map(f=>f.id),0)+1,investor_id:`INV-${1000+Math.floor(Math.random()*900)}`,company_id:`CMP-${200+Math.floor(Math.random()*90)}`,risk_score:Math.round((0.3+Math.random()*0.7)*100)/100,date:newPrice.date,notes:'Auto-detected anomaly'};
+  fraudAlerts.unshift(newAlert);
+
+  const predId=Math.max(...predictions.map(p=>p.id),0)+1;
+  const pred={id:predId,date:`2025-11-${7+predictions.length}`,predicted_close:Math.round((newPrice.close + Math.random()*4-1)*100)/100,model:'AutoDemoModel',accuracy:`${Math.round(80+Math.random()*15)}%`};
+  predictions.unshift(pred);
+
+  renderPriceTable(); renderPredTable(); renderFraudTable(); updateCharts();
+}
+
+// Charts
+let priceChart, volumeChart;
+function updateCharts(){
+  const labels=priceHistory.map(p=>p.date);
+  const closeData=priceHistory.map(p=>p.close);
+  const volumeData=priceHistory.map(p=>p.volume);
+
+  if(priceChart){ priceChart.data.labels=labels; priceChart.data.datasets[0].data=closeData; priceChart.update(); }
+  else{ const ctx=document.getElementById('priceChart').getContext('2d'); priceChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Close Price',data:closeData,borderColor:'#8884d8',fill:false}]},options:{responsive:true}});} 
+
+  if(volumeChart){ volumeChart.data.labels=labels; volumeChart.data.datasets[0].data=volumeData; volumeChart.update(); }
+  else{ const ctx=document.getElementById('volumeChart').getContext('2d'); volumeChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Volume',data:volumeData,backgroundColor:'#82ca9d'}]},options:{responsive:true}});} 
+}
+
+// initial render
+renderPriceTable(); renderPredTable(); renderFraudTable(); updateCharts();
+</script>
+
+</body>
+</html>

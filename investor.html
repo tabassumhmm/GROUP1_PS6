@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Investor Portal — Full Prototype</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#152331; --muted:#9aa7b6; --accent:#00c2ff; --danger:#e14b4b;
+      --success:#21c55d; --warning:#ffb020; --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#e6eef6}
+    nav{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#0b1622;border-bottom:1px solid rgba(255,255,255,0.03);position:sticky;top:0;z-index:50}
+    .brand{font-weight:700;color:var(--accent);font-size:18px}
+    .menu a{color:#d9e6f1;margin:0 10px;text-decoration:none;padding:8px;border-radius:6px;font-weight:600}
+    .menu a.active{background:rgba(0,194,255,0.07);color:var(--accent)}
+    .container{padding:20px;max-width:1200px;margin:0 auto}
+    .grid{display:grid;gap:20px}
+    .row-4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+    .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.5)}
+    h1,h2{margin:0 0 12px 0}
+    p.muted{color:var(--muted);margin:6px 0 0 0}
+    /* summary small */
+    .summary{display:flex;gap:12px;flex-wrap:wrap}
+    .summary .card{flex:1;min-width:180px;text-align:center}
+    /* charts */
+    .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    canvas{background:transparent;border-radius:8px;padding:8px}
+    /* tables */
+    table{width:100%;border-collapse:collapse;margin-top:12px;background:var(--card);border-radius:8px;overflow:hidden}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px;color:#e6eef6}
+    th{background:#0f2a3b;color:var(--accent);font-weight:700}
+    tr:hover{background:rgba(255,255,255,0.02)}
+    .actions button{margin-right:6px}
+    button{background:var(--glass);color:#e6eef6;border:1px solid rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px;cursor:pointer}
+    button.positive{background:linear-gradient(90deg, rgba(33,197,93,0.12), rgba(0,194,255,0.06));border-color:rgba(33,197,93,0.14)}
+    button.negative{background:linear-gradient(90deg, rgba(225,75,75,0.12), rgba(0,0,0,0.02));border-color:rgba(225,75,75,0.14)}
+    .pill{display:inline-block;padding:6px 8px;border-radius:999px;font-weight:700;font-size:12px}
+    .pill.buy{background:rgba(33,197,93,0.12);color:var(--success);border:1px solid rgba(33,197,93,0.14)}
+    .pill.sell{background:rgba(225,75,75,0.08);color:var(--danger);border:1px solid rgba(225,75,75,0.12)}
+    .pill.pending{background:rgba(255,176,32,0.08);color:var(--warning);border:1px solid rgba(255,176,32,0.12)}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input[type="text"],select,input[type="number"],input[type="datetime-local"]{background:#0c1a26;border:1px solid rgba(255,255,255,0.03);color:#e6eef6;padding:8px;border-radius:6px}
+    .topbar-right{display:flex;gap:10px;align-items:center}
+    .search{margin-left:auto}
+    footer{padding:20px;text-align:center;color:var(--muted);margin-top:30px}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:999}
+    .modal{background:var(--card);padding:18px;border-radius:10px;min-width:320px;max-width:720px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    .modal h3{margin:0 0 12px 0}
+    .form-row{display:flex;gap:8px;margin-bottom:8px}
+    .form-row > *{flex:1}
+    .fraud-flag{color:var(--danger);font-weight:800}
+    /* responsive */
+    @media (max-width:900px){.charts{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="brand">Investor Portal</div>
+    <div class="menu">
+      <a href="#" class="active" data-target="dashboard">Dashboard</a>
+      <a href="#" data-target="investors">Investors</a>
+      <a href="#" data-target="tradeRequests">Trade Requests</a>
+      <a href="#" data-target="portfolio">Portfolio</a>
+      <a href="#" data-target="tradeRecords">Trade Records</a>
+      <a href="#" data-target="notifications">Notifications</a>
+      <a href="#" style="color:var(--danger)">Logout</a>
+    </div>
+    <div class="topbar-right" style="margin-left:12px">
+      <div class="search"><input id="globalSearch" placeholder="Quick search (investor / stock / req id)"/></div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="active">
+      <h1>📊 Dashboard</h1>
+      <div class="grid summary row-4" style="margin-bottom:16px">
+        <div class="card">
+          <h2>Total Portfolio</h2>
+          <p style="font-size:20px">$ <span id="dashTotal">0</span></p>
+          <p class="muted">Total market value of holdings</p>
+        </div>
+        <div class="card">
+          <h2>Active Requests</h2>
+          <p style="font-size:20px"><span id="dashActiveReq">0</span></p>
+          <p class="muted">Pending buy/sell requests</p>
+        </div>
+        <div class="card">
+          <h2>Buys vs Sells</h2>
+          <p style="font-size:20px"><span id="dashBuySellRatio">0 / 0</span></p>
+          <p class="muted">Count in last 30 days</p>
+        </div>
+        <div class="card">
+          <h2>Predicted Price</h2>
+          <p style="font-size:18px" id="predictedPrice">$0.00</p>
+          <p class="muted">Short term predicted price (mock)</p>
+        </div>
+      </div>
+
+      <div class="charts">
+        <div class="card">
+          <h3>Buys / Sells (count)</h3>
+          <canvas id="buysellsChart" height="200"></canvas>
+        </div>
+        <div class="card">
+          <h3>Portfolio Value Trend</h3>
+          <canvas id="portfolioTrendChart" height="200"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVESTORS -->
+    <section id="investors" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>👥 Investors</h2>
+        <div class="controls">
+          <input id="investorSearch" placeholder="Search investors...">
+          <button onclick="openModal('investorAdd')">+ Add Investor</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <table id="investorTable">
+          <thead>
+            <tr>
+              <th>Investor ID</th>
+              <th>Name</th>
+              <th>Account Type</th>
+              <th>Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TRADE REQUESTS -->
+    <section id="tradeRequests" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>💹 Trade Requests</h2>
+        <div class="controls">
+          <input id="requestSearch" placeholder="Search requests (id / stock) ...">
+          <button onclick="openModal('requestAdd')">+ New Request</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <table id="requestsTable">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Investor</th>
+              <th>Stock</th>
+              <th>Type</th>
+              <th>Qty</th>
+              <th>Price/Unit</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Fraud</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PORTFOLIO -->
+    <section id="portfolio" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>📈 Portfolio</h2>
+        <div class="controls">
+          <input id="portfolioSearch" placeholder="Search holdings...">
+          <button onclick="openModal('holdingAdd')">+ Add Holding</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <table id="portfolioTable">
+          <thead>
+            <tr>
+              <th>Holding ID</th>
+              <th>Investor</th>
+              <th>Stock</th>
+              <th>Symbol</th>
+              <th>Qty</th>
+              <th>Current Price</th>
+              <th>Value</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TRADE RECORDS -->
+    <section id="tradeRecords" style="display:none">
+      <h2>📜 Trade Records & Fraud Data</h2>
+      <div class="card" style="margin-top:12px">
+        <table id="recordsTable">
+          <thead>
+            <tr>
+              <th>Record ID</th>
+              <th>Request ID</th>
+              <th>Investor</th>
+              <th>Stock</th>
+              <th>Type</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Fraud Flag</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NOTIFICATIONS -->
+    <section id="notifications" style="display:none">
+      <h2>🔔 Notifications</h2>
+      <div class="card" style="margin-top:12px">
+        <ul id="notificationList"></ul>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>© 2025 Investor Prototype • Mock data, extend for backend integration</footer>
+
+  <!-- MODALS -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal" id="modalContent"></div>
+  </div>
+
+<script>
+/* -----------------------
+  In-memory data (mock)
+  ----------------------- */
+let investors = [
+  {id:'INV001', name:'Sumaiya Tabassum', accountType:'Individual', contact:'sumaiya@example.com'},
+  {id:'INV002', name:'A. Khan', accountType:'Institutional', contact:'khan@example.com'}
+];
+
+let holdings = [
+  {hid:'H001', investorId:'INV001', investorName:'Sumaiya Tabassum', stock:'Tesla Inc', symbol:'TSLA', qty:25, currentPrice:240.5},
+  {hid:'H002', investorId:'INV001', investorName:'Sumaiya Tabassum', stock:'Apple Inc', symbol:'AAPL', qty:15, currentPrice:178.25},
+];
+
+let requests = [
+  {rid:'TRD1001', investorId:'INV001', investorName:'Sumaiya Tabassum', stock:'Tesla Inc', type:'Buy', qty:25, price:240.5, total:6012.5, status:'Pending', date: new Date().toISOString(), fraud:false},
+  {rid:'TRD1002', investorId:'INV001', investorName:'Sumaiya Tabassum', stock:'Apple Inc', type:'Sell', qty:15, price:178.25, total:2673.75, status:'Executed', date: new Date().toISOString(), fraud:false},
+];
+
+let records = []; // executed/rejected records will flow here
+let notifications = [];
+
+/* -----------------------
+  Utility helpers
+  ----------------------- */
+function uid(prefix='ID'){ return prefix + Math.floor(1000 + Math.random()*9000) }
+function formatMoney(n){ return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) }
+
+/* -----------------------
+  Rendering functions
+  ----------------------- */
+function renderInvestors(){
+  const tbody = document.querySelector('#investorTable tbody'); tbody.innerHTML='';
+  investors.forEach(inv=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${inv.id}</td>
+      <td>${inv.name}</td>
+      <td>${inv.accountType}</td>
+      <td>${inv.contact}</td>
+      <td class="actions">
+        <button onclick="openModal('investorEdit','${inv.id}')">Edit</button>
+        <button onclick="deleteInvestor('${inv.id}')" class="negative">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  })
+}
+function renderRequests(){
+  const tbody = document.querySelector('#requestsTable tbody'); tbody.innerHTML='';
+  requests.forEach(r=>{
+    const fraudBadge = r.fraud ? '<span class="pill" style="background:rgba(225,75,75,0.12);color:var(--danger)">FRAUD</span>' : '';
+    const typePill = r.type === 'Buy' ? '<span class="pill buy">BUY</span>' : '<span class="pill sell">SELL</span>';
+    const statusPill = r.status==='Pending'?'<span class="pill pending">Pending</span>': r.status==='Executed'?'<span class="pill buy">Executed</span>':'<span class="pill sell">'+r.status+'</span>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.rid}</td>
+      <td>${r.investorName}</td>
+      <td>${r.stock}</td>
+      <td>${typePill}</td>
+      <td>${r.qty}</td>
+      <td>$${formatMoney(r.price)}</td>
+      <td>$${formatMoney(r.total)}</td>
+      <td>${statusPill}</td>
+      <td>${fraudBadge}</td>
+      <td class="actions">
+        <button onclick="openModal('requestEdit','${r.rid}')">Edit</button>
+        <button onclick="executeRequest('${r.rid}')" class="positive">Execute</button>
+        <button onclick="rejectRequest('${r.rid}')" class="negative">Reject</button>
+        <button onclick="deleteRequest('${r.rid}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  })
+}
+function renderPortfolio(){
+  const tbody = document.querySelector('#portfolioTable tbody'); tbody.innerHTML='';
+  holdings.forEach(h=>{
+    const val = h.qty * h.currentPrice;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.hid}</td>
+      <td>${h.investorName}</td>
+      <td>${h.stock}</td>
+      <td>${h.symbol}</td>
+      <td>${h.qty}</td>
+      <td>$${formatMoney(h.currentPrice)}</td>
+      <td>$${formatMoney(val)}</td>
+      <td class="actions">
+        <button onclick="openModal('holdingEdit','${h.hid}')">Edit</button>
+        <button onclick="openModal('holdingSell','${h.hid}')" class="negative">Sell</button>
+        <button onclick="openModal('holdingBuy','${h.hid}')" class="positive">Buy</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  })
+}
+function renderRecords(){
+  const tbody = document.querySelector('#recordsTable tbody'); tbody.innerHTML='';
+  records.forEach(rec=>{
+    const fraud = rec.fraud ? '<span class="fraud-flag">YES</span>' : 'NO';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${rec.rid}</td><td>${rec.reqId}</td><td>${rec.investor}</td><td>${rec.stock}</td><td>${rec.type}</td><td>${rec.qty}</td><td>$${formatMoney(rec.price)}</td><td>${rec.status}</td><td>${fraud}</td>`;
+    tbody.appendChild(tr);
+  })
+}
+function renderNotifications(){
+  const ul = document.getElementById('notificationList'); ul.innerHTML='';
+  notifications.slice().reverse().forEach(n=>{
+    const li = document.createElement('li'); li.textContent = n; ul.appendChild(li);
+  })
+}
+function updateDashboard(){
+  // total portfolio value
+  const total = holdings.reduce((s,h)=>s + (h.qty*h.currentPrice),0);
+  document.getElementById('dashTotal').textContent = formatMoney(total);
+  // active requests
+  const active = requests.filter(r=>r.status==='Pending').length;
+  document.getElementById('dashActiveReq').textContent = active;
+  // buys vs sells counts
+  const buys = requests.filter(r=>r.type==='Buy').length;
+  const sells = requests.filter(r=>r.type==='Sell').length;
+  document.getElementById('dashBuySellRatio').textContent = `${buys} / ${sells}`;
+  // predicted price mock (take last executed prices avg)
+  const executed = records.filter(r => r.status==='Executed' && r.stock);
+  let pred = 0;
+  if(executed.length > 0){
+    const avg = executed.reduce((s,r)=>s + r.price,0) / executed.length;
+    // simple mock: predicted = avg * (1 + small random drift)
+    pred = avg * (1 + (Math.random()*0.06 - 0.03));
+  } else {
+    // fallback use recent request price average
+    pred = requests.length ? (requests.reduce((s,r)=>s + r.price,0) / requests.length) : 0;
+  }
+  document.getElementById('predictedPrice').textContent = '$' + formatMoney(pred || 0);
+
+  // update charts
+  updateCharts();
+}
+
+/* -----------------------
+  CRUD / Actions
+  ----------------------- */
+function addInvestor(data){
+  investors.push(data);
+  renderInvestors();
+  notify(`Investor ${data.name} added`);
+}
+function updateInvestor(id, data){
+  const idx = investors.findIndex(i=>i.id===id);
+  if(idx>=0) investors[idx] = {...investors[idx], ...data};
+  renderInvestors();
+  notify(`Investor ${id} updated`);
+}
+function deleteInvestor(id){
+  if(!confirm('Delete investor?')) return;
+  investors = investors.filter(i=>i.id !== id);
+  // remove associated holdings & requests maybe (simple: keep for prototyping)
+  renderInvestors(); renderPortfolio();
+  notify(`Investor ${id} deleted`);
+}
+
+function addHolding(h){
+  holdings.push(h);
+  renderPortfolio(); updateDashboard();
+  notify(`Holding ${h.stock} added for ${h.investorName}`);
+}
+
+function addRequest(r){
+  // detect fraud with simple heuristic:
+  // fraud if qty > 1000 OR price > 10 * median recent price of same stock
+  const sameStock = requests.filter(x=>x.stock===r.stock).map(x=>x.price);
+  const median = sameStock.length ? sameStock.sort((a,b)=>a-b)[Math.floor(sameStock.length/2)] : r.price;
+  let fraud = false;
+  if(r.qty > 1000) fraud = true;
+  if(median && r.price > median * 10) fraud = true;
+  r.fraud = fraud;
+  requests.push(r);
+  renderRequests(); updateDashboard();
+  notify(`Request ${r.rid} created (${r.type})`);
+}
+
+function executeRequest(rid){
+  const idx = requests.findIndex(r=>r.rid===rid);
+  if(idx<0) return;
+  const r = requests[idx];
+  r.status = 'Executed';
+  // push to records
+  const rec = { rid: uid('REC'), reqId: r.rid, investor: r.investorName, stock:r.stock, type:r.type, qty:r.qty, price:r.price, status:'Executed', fraud:r.fraud };
+  records.push(rec);
+  // If buy, add to holdings (merge if exists)
+  if(r.type==='Buy'){
+    const hIdx = holdings.findIndex(h=>h.investorId===r.investorId && h.stock===r.stock);
+    if(hIdx>=0){
+      holdings[hIdx].qty += r.qty;
+      holdings[hIdx].currentPrice = r.price; // update current price to executed price
+    } else {
+      holdings.push({hid:uid('H'), investorId:r.investorId, investorName:r.investorName, stock:r.stock, symbol:r.stock.split(' ').map(w=>w[0]).join('').toUpperCase(), qty:r.qty, currentPrice:r.price})
+    }
+  } else {
+    // Sell: reduce quantity
+    const hIdx = holdings.findIndex(h=>h.investorId===r.investorId && h.stock===r.stock);
+    if(hIdx>=0){
+      holdings[hIdx].qty -= r.qty;
+      if(holdings[hIdx].qty <= 0) holdings.splice(hIdx,1);
+    }
+  }
+  renderRequests(); renderPortfolio(); renderRecords(); updateDashboard();
+  notify(`Request ${rid} executed`);
+}
+
+function rejectRequest(rid){
+  const idx = requests.findIndex(r=>r.rid===rid);
+  if(idx<0) return;
+  const r = requests[idx];
+  r.status = 'Rejected';
+  records.push({rid: uid('REC'), reqId:r.rid, investor:r.investorName, stock:r.stock, type:r.type, qty:r.qty, price:r.price, status:'Rejected', fraud:r.fraud});
+  renderRequests(); renderRecords(); updateDashboard();
+  notify(`Request ${rid} rejected`);
+}
+
+function deleteRequest(rid){
+  if(!confirm('Delete request?')) return;
+  requests = requests.filter(r=>r.rid !== rid);
+  renderRequests(); updateDashboard();
+  notify(`Request ${rid} deleted`);
+}
+
+/* -----------------------
+  Modal system (forms)
+  ----------------------- */
+function openModal(type,id){
+  const backdrop = document.getElementById('modalBackdrop');
+  const content = document.getElementById('modalContent');
+  content.innerHTML = ''; backdrop.style.display='flex';
+
+  // investor add / edit
+  if(type==='investorAdd' || type==='investorEdit'){
+    const isEdit = type==='investorEdit';
+    const inv = isEdit ? investors.find(i=>i.id===id) : {id:uid('INV'),name:'',accountType:'Individual',contact:''};
+    content.innerHTML = `
+      <h3>${isEdit? 'Edit' : 'Add'} Investor</h3>
+      <div class="form-row"><input id="invId" value="${inv.id}" readonly /></div>
+      <div class="form-row"><input id="invName" placeholder="Full name" value="${inv.name}"/></div>
+      <div class="form-row">
+        <select id="invType">
+          <option ${inv.accountType==='Individual'?'selected':''}>Individual</option>
+          <option ${inv.accountType==='Institutional'?'selected':''}>Institutional</option>
+          <option ${inv.accountType==='Joint'?'selected':''}>Joint</option>
+        </select>
+        <input id="invContact" placeholder="Email or phone" value="${inv.contact}"/>
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="positive" onclick="${isEdit?`submitInvestorEdit('${inv.id}')`:`submitInvestorAdd()`}">${isEdit?'Save':'Add'}</button>
+      </div>
+    `;
+    return;
+  }
+
+  // holding add / edit / buy / sell
+  if(['holdingAdd','holdingEdit','holdingBuy','holdingSell'].includes(type)){
+    const isEdit = type==='holdingEdit';
+    const h = isEdit ? holdings.find(x=>x.hid===id) : {hid:uid('H'), investorId:investors[0]?.id || '', investorName:investors[0]?.name || '', stock:'', symbol:'', qty:0, currentPrice:0}
+    const action = type.includes('Buy') ? 'Buy' : (type.includes('Sell') ? 'Sell' : (isEdit ? 'Save' : 'Add'));
+    content.innerHTML = `
+      <h3>${action} Holding</h3>
+      <div class="form-row"><input id="hid" value="${h.hid}" readonly /></div>
+      <div class="form-row">
+        <select id="holdInvestor">${investors.map(inv=>`<option value="${inv.id}" ${inv.id===h.investorId?'selected':''}>${inv.name}</option>`).join('')}</select>
+        <input id="holdStock" placeholder="Stock name" value="${h.stock}" />
+      </div>
+      <div class="form-row">
+        <input id="holdSymbol" placeholder="Symbol" value="${h.symbol}"/>
+        <input id="holdQty" type="number" min="0" value="${h.qty}"/>
+      </div>
+      <div class="form-row">
+        <input id="holdPrice" type="number" step="0.01" placeholder="Current price" value="${h.currentPrice}"/>
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="positive" onclick="submitHolding('${type}','${h.hid}')">${action}</button>
+      </div>
+    `;
+    return;
+  }
+
+  // trade request add/edit
+  if(type==='requestAdd' || type==='requestEdit'){
+    const isEdit = type==='requestEdit';
+    const r = isEdit ? requests.find(x=>x.rid===id) : {rid:uid('TRD'), investorId:investors[0]?.id || '', investorName:investors[0]?.name || '', stock:'', type:'Buy', qty:0, price:0}
+    content.innerHTML = `
+      <h3>${isEdit? 'Edit' : 'New'} Trade Request</h3>
+      <div class="form-row"><input id="rid" value="${r.rid}" readonly /></div>
+      <div class="form-row">
+        <select id="reqInvestor">${investors.map(inv=>`<option value="${inv.id}" ${inv.id===r.investorId?'selected':''}>${inv.name}</option>`).join('')}</select>
+        <input id="reqStock" placeholder="Stock name" value="${r.stock}" />
+      </div>
+      <div class="form-row">
+        <select id="reqType">
+          <option ${r.type==='Buy'?'selected':''}>Buy</option>
+          <option ${r.type==='Sell'?'selected':''}>Sell</option>
+        </select>
+        <input id="reqQty" type="number" min="1" value="${r.qty}" />
+      </div>
+      <div class="form-row">
+        <input id="reqPrice" type="number" step="0.01" value="${r.price}" placeholder="Price per unit" />
+        <input id="reqDate" type="datetime-local" value="${(r.date? new Date(r.date).toISOString().slice(0,16):'')}" />
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="positive" onclick="submitRequest('${isEdit? r.rid : ''}')">${isEdit? 'Save' : 'Send Request'}</button>
+      </div>
+    `;
+    return;
+  }
+
+  // default close (shouldn't reach here)
+  closeModal();
+}
+function closeModal(){ document.getElementById('modalBackdrop').style.display='none'; document.getElementById('modalContent').innerHTML=''; }
+
+/* submit handlers for modal forms */
+function submitInvestorAdd(){
+  const inv = { id: document.getElementById('invId').value, name: document.getElementById('invName').value, accountType: document.getElementById('invType').value, contact: document.getElementById('invContact').value };
+  addInvestor(inv); closeModal();
+}
+function submitInvestorEdit(id){
+  const data = { name: document.getElementById('invName').value, accountType: document.getElementById('invType').value, contact: document.getElementById('invContact').value };
+  updateInvestor(id,data); closeModal();
+}
+
+function submitHolding(type,id){
+  const hid = document.getElementById('hid').value;
+  const investorId = document.getElementById('holdInvestor').value;
+  const invName = investors.find(i=>i.id===investorId)?.name || '';
+  const stock = document.getElementById('holdStock').value;
+  const symbol = document.getElementById('holdSymbol').value || stock.split(' ').map(w=>w[0]).join('').toUpperCase();
+  const qty = Number(document.getElementById('holdQty').value) || 0;
+  const price = Number(document.getElementById('holdPrice').value) || 0;
+  if(type==='holdingAdd' || type==='holdingEdit'){
+    if(type==='holdingAdd') holdings.push({hid, investorId, investorName:invName, stock, symbol, qty, currentPrice:price});
+    else {
+      const idx = holdings.findIndex(h=>h.hid===id);
+      if(idx>=0) holdings[idx] = {hid, investorId, investorName:invName, stock, symbol, qty, currentPrice:price};
+    }
+  } else if(type==='holdingBuy' || type==='holdingSell'){
+    // create a request based on this
+    const request = { rid: uid('TRD'), investorId, investorName:invName, stock, type: type==='holdingBuy'?'Buy':'Sell', qty: qty, price: price, total: qty*price, status:'Pending', date:new Date().toISOString(), fraud:false }
+    addRequest(request);
+  }
+  renderPortfolio(); updateDashboard(); closeModal();
+}
+
+function submitRequest(editRid=''){
+  const rid = document.getElementById('rid').value;
+  const investorId = document.getElementById('reqInvestor').value;
+  const invName = investors.find(i=>i.id===investorId)?.name || '';
+  const stock = document.getElementById('reqStock').value || 'Unknown';
+  const type = document.getElementById('reqType').value;
+  const qty = Number(document.getElementById('reqQty').value) || 0;
+  const price = Number(document.getElementById('reqPrice').value) || 0;
+  const total = qty * price;
+  if(editRid){
+    const idx = requests.findIndex(r=>r.rid===editRid);
+    if(idx>=0){
+      requests[idx] = {...requests[idx], investorId, investorName:invName, stock, type, qty, price, total};
+      renderRequests(); updateDashboard(); notify(`Request ${editRid} updated`);
+    }
+  } else {
+    addRequest({rid, investorId, investorName:invName, stock, type, qty, price, total, status:'Pending', date:document.getElementById('reqDate').value || new Date().toISOString()});
+  }
+  closeModal();
+}
+
+/* -----------------------
+  Search filters
+  ----------------------- */
+document.getElementById('investorSearch').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#investorTable tbody tr').forEach(tr=>{
+    tr.style.display = (tr.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  })
+});
+document.getElementById('requestSearch').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#requestsTable tbody tr').forEach(tr=>{
+    tr.style.display = (tr.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  })
+});
+document.getElementById('portfolioSearch').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#portfolioTable tbody tr').forEach(tr=>{
+    tr.style.display = (tr.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  })
+});
+document.getElementById('globalSearch').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase();
+  // highlight relevant sections by searching and revealing matches in tables
+  ['#investorTable tbody tr','#requestsTable tbody tr','#portfolioTable tbody tr'].forEach(sel=>{
+    document.querySelectorAll(sel).forEach(tr=>{
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    })
+  })
+});
+
+/* -----------------------
+  Notifications
+  ----------------------- */
+function notify(msg){
+  notifications.push(`${new Date().toLocaleString()} — ${msg}`);
+  renderNotifications();
+}
+
+/* -----------------------
+  Navigation
+  ----------------------- */
+document.querySelectorAll('.menu a[data-target]').forEach(a=>{
+  a.addEventListener('click', (ev)=>{
+    ev.preventDefault();
+    const target = a.dataset.target;
+    document.querySelectorAll('.menu a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('section').forEach(s=>s.style.display='none');
+    document.getElementById(target).style.display='block';
+    // reset global search
+    document.getElementById('globalSearch').value='';
+    // re-render dashboards maybe
+    updateDashboard();
+  })
+});
+
+/* -----------------------
+  Initial rendering
+  ----------------------- */
+renderInvestors(); renderPortfolio(); renderRequests(); renderRecords(); renderNotifications(); updateDashboard();
+
+/* -----------------------
+  Charts (Chart.js)
+  ----------------------- */
+let buysellsChart, portfolioTrendChart;
+function updateCharts(){
+  // buysells counts by type
+  const buyCount = requests.filter(r=>r.type==='Buy').length;
+  const sellCount = requests.filter(r=>r.type==='Sell').length;
+  if(!buysellsChart){
+    const ctx = document.getElementById('buysellsChart').getContext('2d');
+    buysellsChart = new Chart(ctx, {
+      type:'doughnut',
+      data:{labels:['Buy','Sell'],datasets:[{data:[buyCount,sellCount],backgroundColor:['#21c55d','#e14b4b']}]},
+      options:{plugins:{legend:{labels:{color:'#e6eef6'}}}}
+    });
+  } else {
+    buysellsChart.data.datasets[0].data = [buyCount,sellCount];
+    buysellsChart.update();
+  }
+
+  // portfolio trend (mock: use holdings value snapshots)
+  const labels = ['6mo ago','5','4','3','2','1','Now'];
+  const base = holdings.reduce((s,h)=>s + (h.qty*h.currentPrice),0) || 1000;
+  const values = labels.map((l,i)=>Math.round(base * (0.7 + i*0.05 + Math.random()*0.04)));
+  if(!portfolioTrendChart){
+    const ctx2 = document.getElementById('portfolioTrendChart').getContext('2d');
+    portfolioTrendChart = new Chart(ctx2, {
+      type:'line',
+      data:{labels, datasets:[{label:'Portfolio Value', data: values, borderColor: '#00c2ff', tension:0.4, fill:true, backgroundColor:'rgba(0,194,255,0.06)'}]},
+      options:{scales:{x:{ticks:{color:'#9aa7b6'}},y:{ticks:{color:'#9aa7b6'}}}, plugins:{legend:{labels:{color:'#e6eef6'}}}}
+    });
+  } else {
+    portfolioTrendChart.data.datasets[0].data = values;
+    portfolioTrendChart.update();
+  }
+}
+
+/* -----------------------
+  Quick demo: create sample notifications and push executed records
+  ----------------------- */
+setTimeout(()=>{
+  // move executed requests into records for dashboard example
+  requests.filter(r=>r.status==='Executed').forEach(r=>records.push({rid:uid('REC'), reqId:r.rid, investor:r.investorName, stock:r.stock, type:r.type, qty:r.qty, price:r.price, status:'Executed', fraud:r.fraud}));
+  updateDashboard(); renderRecords();
+  notify('System initialized with sample data');
+}, 500);
+
+/* -----------------------
+  Helper: close modal on backdrop click
+  ----------------------- */
+document.getElementById('modalBackdrop').addEventListener('click', (ev)=>{
+  if(ev.target === document.getElementById('modalBackdrop')) closeModal();
+});
+</script>
+</body>
+</html>

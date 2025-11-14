@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Auditor Dashboard — Interactive</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#1e293b; --text:#e2e8f0; --accent:#38bdf8;
+      --danger:#f87171; --success:#4ade80; --muted:#94a3b8;
+    }
+    body{margin:0;font-family:Inter,Segoe UI,Arial;background:var(--bg);color:var(--text)}
+    nav{background:var(--card);display:flex;justify-content:space-between;align-items:center;padding:14px 20px;position:sticky;top:0;z-index:5}
+    .logo{font-weight:700;color:var(--accent)}
+    nav ul{display:flex;gap:8px;list-style:none;padding:0;margin:0}
+    nav ul li{padding:8px 12px;border-radius:6px;cursor:pointer}
+    nav ul li.active, nav ul li:hover{background:var(--accent);color:#000}
+    section{padding:18px 22px}
+    h2{color:var(--accent);margin:0 0 8px 0}
+    .controls{display:flex;gap:8px;align-items:center;margin:10px 0 12px 0;flex-wrap:wrap}
+    .btn{padding:8px 12px;border-radius:6px;border:none;cursor:pointer;font-weight:600}
+    .btn.add{background:var(--success);color:#042014}
+    .btn.search{background:var(--accent);color:#000}
+    .btn.edit{background:#fbbf24;color:#000}
+    .btn.delete{background:var(--danger);color:#fff}
+    .search-input{padding:8px;border-radius:6px;border:1px solid #334155;background:transparent;color:var(--text)}
+    table{width:100%;border-collapse:collapse;background:var(--card);margin-top:8px;border-radius:8px;overflow:hidden}
+    thead th{background:#0ea5e9;padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06)}
+    th,td{padding:10px;border-bottom:1px solid #243243;font-size:14px}
+    tbody tr:hover{background:rgba(255,255,255,0.02)}
+    .row-actions{display:flex;gap:6px}
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center;z-index:20}
+    .modal{background:var(--card);padding:18px;border-radius:10px;width:480px;max-width:92%}
+    .modal h3{margin:0 0 12px;color:var(--accent)}
+    .field{display:flex;flex-direction:column;margin-bottom:10px}
+    .field label{font-size:13px;color:var(--muted);margin-bottom:6px}
+    .field input, .field textarea, .field select{
+      padding:8px;border-radius:6px;border:1px solid #334155;background:transparent;color:var(--text)
+    }
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+    .small-muted{font-size:13px;color:var(--muted)}
+    /* responsive */
+    @media (max-width:680px){ .controls{flex-direction:column;align-items:stretch} .row-actions{flex-wrap:wrap} }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">Auditor Dashboard</div>
+    <ul>
+      <li class="active" onclick="showSection('home', event)">Home</li>
+      <li onclick="showSection('auditReports', event)">Audit Reports</li>
+      <li onclick="showSection('fraudAlerts', event)">Fraud Alerts</li>
+      <li onclick="showSection('verification', event)">Data Verification</li>
+      <li onclick="showSection('recommendations', event)">Recommendations</li>
+      <li onclick="showSection('logout', event)">Logout</li>
+    </ul>
+  </nav>
+
+  <!-- HOME -->
+  <section id="home">
+    <h2>Welcome, Auditor</h2>
+    <p class="small-muted">Monitor audit activity and fraud alerts at a glance.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+      <div style="flex:1;min-width:260px;background:var(--card);padding:12px;border-radius:10px">
+        <canvas id="homeChart" width="400" height="180"></canvas>
+      </div>
+      <div style="flex:1;min-width:260px;background:var(--card);padding:12px;border-radius:10px">
+        <h3 style="margin:0 0 8px 0;color:var(--accent)">Summary</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="small-muted">Total Reports: <strong id="summaryTotal">0</strong></div>
+          <div class="small-muted">Pending: <strong id="summaryPending">0</strong></div>
+          <div class="small-muted">Fraud Alerts (last 30d): <strong id="summaryFraud">0</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AUDIT REPORTS -->
+  <section id="auditReports" style="display:none;">
+    <h2>Audit Reports</h2>
+    <div class="controls">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn add" id="btnAdd">+ Add Report</button>
+        <button class="btn search" id="btnClearSearch">Clear</button>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input id="searchInput" class="search-input" placeholder="Search by company, auditor, findings..." />
+        <button class="btn search" id="btnSearch">Search</button>
+      </div>
+    </div>
+
+    <table id="reportsTable" aria-describedby="reportsTableDesc">
+      <caption id="reportsTableDesc" style="display:none">List of audit reports linked to companies</caption>
+      <thead>
+        <tr>
+          <th>Report ID</th>
+          <th>Company Name</th>
+          <th>Auditor Name</th>
+          <th>Date</th>
+          <th>Findings Summary</th>
+          <th>Status</th>
+          <th style="width:140px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+
+    <div style="margin-top:14px;background:var(--card);padding:12px;border-radius:10px">
+      <canvas id="auditChart" width="600" height="200"></canvas>
+    </div>
+  </section>
+
+  <!-- FRAUD ALERTS -->
+  <section id="fraudAlerts" style="display:none">
+    <h2>Fraud Alerts</h2>
+    <p class="small-muted">System-generated alerts based on suspicious activities.</p>
+    <table>
+      <thead>
+        <tr><th>Alert ID</th><th>Company</th><th>Alert Type</th><th>Date</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>FA-021</td><td>Bright Finance Ltd.</td><td>Unusual transaction pattern</td><td>2025-11-11</td><td>Under Review</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- VERIFICATION -->
+  <section id="verification" style="display:none">
+    <h2>Data Verification</h2>
+    <p class="small-muted">Verify fetched data accuracy before final audit submission.</p>
+    <table>
+      <thead><tr><th>Verification ID</th><th>Company</th><th>Data Type</th><th>Status</th><th>Last Checked</th></tr></thead>
+      <tbody><tr><td>V-015</td><td>Global Traders Co.</td><td>Revenue Records</td><td>Verified</td><td>2025-11-09</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section id="recommendations" style="display:none">
+    <h2>Recommendations</h2>
+    <p class="small-muted">Submit corrective measures and financial advice.</p>
+    <table>
+      <thead><tr><th>Rec ID</th><th>Company</th><th>Recommendation</th><th>Submitted On</th><th>Status</th></tr></thead>
+      <tbody><tr><td>R-100</td><td>Tech Innovators Ltd.</td><td>Implement stricter invoice tracking.</td><td>2025-11-10</td><td>Pending Approval</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- LOGOUT -->
+  <section id="logout" style="display:none">
+    <h2>Logout</h2>
+    <p class="small-muted">You have been logged out (placeholder).</p>
+  </section>
+
+  <!-- Modal: Add / Edit Report -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">Add Report</h3>
+      <form id="reportForm">
+        <input type="hidden" id="reportIdField" />
+        <div class="field">
+          <label>Company Name</label>
+          <input id="companyField" required />
+        </div>
+        <div class="field">
+          <label>Auditor Name</label>
+          <input id="auditorField" required />
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="dateField" type="date" required />
+        </div>
+        <div class="field">
+          <label>Findings Summary</label>
+          <textarea id="findingsField" rows="3" required></textarea>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="statusField">
+            <option>Pending</option>
+            <option>Reviewed</option>
+            <option>Completed</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cancelModal">Cancel</button>
+          <button type="submit" class="btn add" id="saveReport">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirm (simple) -->
+  <div class="modal-backdrop" id="confirmBackdrop" style="display:none;z-index:25">
+    <div class="modal">
+      <h3>Confirm Delete</h3>
+      <p class="small-muted" id="confirmText">Are you sure you want to delete this report?</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn" id="cancelDelete">Cancel</button>
+        <button class="btn delete" id="confirmDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+   Data model & initial data
+   ------------------------- */
+let reports = [
+  {id:'AR-001', company:'Tech Innovators Ltd.', auditor:'Sumaiya Tabassum', date:'2025-11-10', findings:'Minor accounting inconsistencies found.', status:'Reviewed'},
+  {id:'AR-002', company:'Global Traders Co.', auditor:'Sumaiya Tabassum', date:'2025-11-08', findings:'No major issues found.', status:'Completed'},
+  {id:'AR-003', company:'Bright Finance Ltd.', auditor:'Ali Rahman', date:'2025-11-05', findings:'Unusual vendor payments.', status:'Pending'}
+];
+
+let filteredReports = [...reports]; // used for search view
+
+/* -------------------------
+   Helpers
+   ------------------------- */
+function generateId() {
+  // Simple unique id generator like AR-00X
+  const base = 'AR-';
+  const num = (reports.length + Math.floor(Math.random()*100)).toString().slice(-3);
+  let candidate = base + num;
+  if (reports.find(r=>r.id===candidate)) return generateId();
+  return candidate;
+}
+
+function showSection(id, evt){
+  document.querySelectorAll('section').forEach(s=>s.style.display='none');
+  document.getElementById(id).style.display='block';
+  document.querySelectorAll('nav ul li').forEach(li=>li.classList.remove('active'));
+  if(evt && evt.target) evt.target.classList.add('active');
+  // update charts when switching to auditReports or home
+  if(id==='auditReports') renderTable();
+  updateSummary();
+}
+
+/* -------------------------
+   Table rendering & actions
+   ------------------------- */
+const tbody = document.querySelector('#reportsTable tbody');
+
+function renderTable(list = filteredReports){
+  tbody.innerHTML = '';
+  if(list.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted)">No reports found.</td></tr>`;
+    updateAuditChart();
+    updateSummary();
+    return;
+  }
+  for(const r of list){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.id}</td>
+      <td>${escapeHtml(r.company)}</td>
+      <td>${escapeHtml(r.auditor)}</td>
+      <td>${r.date}</td>
+      <td style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(r.findings)}">${escapeHtml(r.findings)}</td>
+      <td>${r.status}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn edit" data-action="edit" data-id="${r.id}">Edit</button>
+          <button class="btn delete" data-action="delete" data-id="${r.id}">Delete</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+  updateAuditChart();
+  updateSummary();
+}
+
+function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* -------------------------
+   Search
+   ------------------------- */
+const searchInput = document.getElementById('searchInput');
+document.getElementById('btnSearch').addEventListener('click',()=>{
+  const q = searchInput.value.trim().toLowerCase();
+  if(!q){ filteredReports = [...reports]; renderTable(); return; }
+  filteredReports = reports.filter(r =>
+    r.company.toLowerCase().includes(q) ||
+    r.auditor.toLowerCase().includes(q) ||
+    r.findings.toLowerCase().includes(q) ||
+    r.status.toLowerCase().includes(q) ||
+    r.id.toLowerCase().includes(q)
+  );
+  renderTable();
+});
+document.getElementById('btnClearSearch').addEventListener('click',()=>{
+  searchInput.value=''; filteredReports=[...reports]; renderTable();
+});
+
+/* -------------------------
+   Add / Edit modal
+   ------------------------- */
+const modalBackdrop = document.getElementById('modalBackdrop');
+const reportForm = document.getElementById('reportForm');
+const modalTitle = document.getElementById('modalTitle');
+const reportIdField = document.getElementById('reportIdField');
+const companyField = document.getElementById('companyField');
+const auditorField = document.getElementById('auditorField');
+const dateField = document.getElementById('dateField');
+const findingsField = document.getElementById('findingsField');
+const statusField = document.getElementById('statusField');
+
+document.getElementById('btnAdd').addEventListener('click', ()=>openAddModal());
+document.getElementById('cancelModal').addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) closeModal(); });
+
+function openAddModal(){
+  modalTitle.textContent = 'Add Report';
+  reportIdField.value = '';
+  companyField.value = '';
+  auditorField.value = '';
+  dateField.value = new Date().toISOString().slice(0,10);
+  findingsField.value = '';
+  statusField.value = 'Pending';
+  modalBackdrop.style.display = 'flex';
+  companyField.focus();
+}
+
+function openEditModal(id){
+  const r = reports.find(x=>x.id===id);
+  if(!r) return alert('Report not found');
+  modalTitle.textContent = 'Edit Report';
+  reportIdField.value = r.id;
+  companyField.value = r.company;
+  auditorField.value = r.auditor;
+  dateField.value = r.date;
+  findingsField.value = r.findings;
+  statusField.value = r.status;
+  modalBackdrop.style.display = 'flex';
+  companyField.focus();
+}
+
+function closeModal(){
+  modalBackdrop.style.display = 'none';
+}
+
+/* handle submit */
+reportForm.addEventListener('submit',(ev)=>{
+  ev.preventDefault();
+  const existingId = reportIdField.value;
+  const payload = {
+    id: existingId || generateId(),
+    company: companyField.value.trim(),
+    auditor: auditorField.value.trim(),
+    date: dateField.value,
+    findings: findingsField.value.trim(),
+    status: statusField.value
+  };
+  if(!payload.company || !payload.auditor || !payload.date){ alert('Please fill required fields'); return; }
+
+  if(existingId){
+    // edit
+    const idx = reports.findIndex(r=>r.id===existingId);
+    if(idx>=0){
+      reports[idx] = payload;
+    }
+  } else {
+    // add to top
+    reports.unshift(payload);
+  }
+  filteredReports = [...reports];
+  renderTable();
+  closeModal();
+});
+
+/* -------------------------
+   Delete confirm
+   ------------------------- */
+let deleteTargetId = null;
+const confirmBackdrop = document.getElementById('confirmBackdrop');
+document.getElementById('cancelDelete').addEventListener('click',()=>{ confirmBackdrop.style.display='none'; deleteTargetId=null; });
+document.getElementById('confirmDelete').addEventListener('click', ()=>{
+  if(!deleteTargetId) return;
+  reports = reports.filter(r => r.id !== deleteTargetId);
+  filteredReports = [...reports];
+  renderTable();
+  confirmBackdrop.style.display='none';
+  deleteTargetId = null;
+});
+
+/* -------------------------
+   Row button delegation
+   ------------------------- */
+tbody.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if(action==='edit') openEditModal(id);
+  else if(action==='delete'){
+    deleteTargetId = id;
+    document.getElementById('confirmText').textContent = `Delete report ${id}? This action cannot be undone.`;
+    confirmBackdrop.style.display = 'flex';
+  }
+});
+
+/* -------------------------
+   Charts (Chart.js)
+   ------------------------- */
+let homeChart = null, auditChart = null;
+
+function initCharts(){
+  const homeCtx = document.getElementById('homeChart').getContext('2d');
+  homeChart = new Chart(homeCtx, {
+    type:'pie',
+    data:{
+      labels:['Completed','Pending','Reviewed'],
+      datasets:[{data:[0,0,0], backgroundColor:['#4ade80','#fbbf24','#38bdf8']}]
+    },
+    options:{plugins:{legend:{position:'bottom'}}}
+  });
+
+  const auditCtx = document.getElementById('auditChart').getContext('2d');
+  auditChart = new Chart(auditCtx, {
+    type:'bar',
+    data:{labels:[], datasets:[{label:'Reports per Company', data:[], backgroundColor:[]} ]
+    },
+    options:{scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
+  });
+
+  updateAuditChart();
+  updateSummary();
+}
+
+function updateAuditChart(){
+  // Show top companies and count reports per company
+  const counts = {};
+  for(const r of filteredReports) counts[r.company] = (counts[r.company]||0)+1;
+  const labels = Object.keys(counts).slice(0,8);
+  const data = labels.map(l=>counts[l]);
+  const colors = labels.map((_,i)=> colorForIndex(i));
+  if(auditChart){
+    auditChart.data.labels = labels;
+    auditChart.data.datasets[0].data = data;
+    auditChart.data.datasets[0].backgroundColor = colors;
+    auditChart.update();
+  }
+  // update home pie too
+  updateHomeChart();
+}
+
+function updateHomeChart(){
+  const comp = reports.filter(r => r.status==='Completed').length;
+  const pend = reports.filter(r => r.status==='Pending').length;
+  const rev = reports.filter(r => r.status==='Reviewed').length;
+  if(homeChart){
+    homeChart.data.datasets[0].data = [comp, pend, rev];
+    homeChart.update();
+  }
+}
+
+function updateSummary(){
+  document.getElementById('summaryTotal').textContent = reports.length;
+  document.getElementById('summaryPending').textContent = reports.filter(r=>r.status==='Pending').length;
+  // sample fraud count (static example)
+  document.getElementById('summaryFraud').textContent = 3;
+}
+
+function colorForIndex(i){
+  const palette = ['#60a5fa','#34d399','#fbbf24','#f87171','#a78bfa','#f472b6','#60a5fa','#f59e0b'];
+  return palette[i % palette.length];
+}
+
+/* -------------------------
+   Init
+   ------------------------- */
+initCharts();
+renderTable();
+
+/* show default section */
+showSection('home');
+
+/* Utility: handle Enter in search input */
+searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('btnSearch').click(); } });
+
+</script>
+</body>
+</html>

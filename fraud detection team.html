@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fraud Detection Team UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f4f9;
+    }
+
+    /* Navbar */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #1e293b;
+      padding: 10px 20px;
+      color: #fff;
+    }
+
+    nav .logo {
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    nav ul {
+      display: flex;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav ul li {
+      margin-left: 20px;
+      cursor: pointer;
+    }
+
+    nav ul li:hover {
+      text-decoration: underline;
+    }
+
+    /* Container */
+    .container {
+      padding: 20px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background: #fff;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background: #1e293b;
+      color: #fff;
+    }
+
+    tr:hover {
+      background: #f1f5f9;
+    }
+
+    button {
+      padding: 5px 10px;
+      margin: 0 2px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .edit-btn {
+      background-color: #3b82f6;
+      color: white;
+    }
+
+    .delete-btn {
+      background-color: #ef4444;
+      color: white;
+    }
+
+    .add-btn {
+      background-color: #10b981;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    .search-box {
+      margin-bottom: 10px;
+      padding: 5px 10px;
+      width: 200px;
+    }
+
+    /* Charts */
+    .chart-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .chart-box {
+      flex: 1;
+      min-width: 300px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* Logout page */
+    .logout-msg {
+      text-align: center;
+      margin-top: 50px;
+      font-size: 1.5em;
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="logo">Fraud Detection Team</div>
+    <ul>
+      <li onclick="showPage('home')">Home</li>
+      <li onclick="showPage('fraudAlert')">Fraud Alert</li>
+      <li onclick="showPage('notifications')">Notifications</li>
+      <li onclick="showPage('logout')">Logout</li>
+    </ul>
+  </nav>
+
+  <div class="container">
+
+    <!-- Home Page -->
+    <div id="home" class="page">
+      <h2>Dashboard</h2>
+      <div class="chart-container">
+        <div class="chart-box">
+          <canvas id="fraudByCompanyChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <canvas id="fraudRiskChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fraud Alert Page -->
+    <div id="fraudAlert" class="page" style="display:none;">
+      <h2>Fraud Alert Table</h2>
+      <input type="text" id="searchInput" class="search-box" placeholder="Search..." onkeyup="searchTable()">
+      <button class="add-btn" onclick="addRow()">Add New Record</button>
+      <table id="fraudTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Transaction</th>
+            <th>Risk Score</th>
+            <th>Detection Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>TX12345</td>
+            <td>High</td>
+            <td>2025-11-13</td>
+            <td>
+              <button class="edit-btn">Edit</button>
+              <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Notifications Page -->
+    <div id="notifications" class="page" style="display:none;">
+      <h2>Notifications</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Company ID</th>
+            <th>Investor ID</th>
+            <th>Fraud Alert</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C101</td>
+            <td>I202</td>
+            <td>TX12345 flagged</td>
+          </tr>
+          <tr>
+            <td>C105</td>
+            <td>I209</td>
+            <td>TX12399 flagged</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Logout Page -->
+    <div id="logout" class="page" style="display:none;">
+      <div class="logout-msg">
+        You have been logged out.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Page navigation
+    function showPage(pageId){
+      const pages = document.querySelectorAll('.page');
+      pages.forEach(page => page.style.display = 'none');
+      document.getElementById(pageId).style.display = 'block';
+    }
+
+    // Delete table row
+    function deleteRow(btn){
+      const row = btn.parentNode.parentNode;
+      row.parentNode.removeChild(row);
+    }
+
+    // Add new row
+    function addRow(){
+      const table = document.getElementById('fraudTable').getElementsByTagName('tbody')[0];
+      const newRow = table.insertRow();
+      newRow.innerHTML = `
+        <td>NEW</td>
+        <td>TX0000</td>
+        <td>Medium</td>
+        <td>${new Date().toISOString().split('T')[0]}</td>
+        <td>
+          <button class="edit-btn">Edit</button>
+          <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+        </td>
+      `;
+    }
+
+    // Search in table
+    function searchTable(){
+      const input = document.getElementById('searchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#fraudTable tbody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+      });
+    }
+
+    // Charts
+    const ctx1 = document.getElementById('fraudByCompanyChart').getContext('2d');
+    const fraudByCompanyChart = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: ['Company A', 'Company B', 'Company C', 'Company D'],
+        datasets: [{
+          label: 'Fraud Cases',
+          data: [5, 8, 3, 7],
+          backgroundColor: ['#ef4444','#f59e0b','#10b981','#3b82f6']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Fraud Cases by Company' }
+        }
+      }
+    });
+
+    const ctx2 = document.getElementById('fraudRiskChart').getContext('2d');
+    const fraudRiskChart = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: ['High', 'Medium', 'Low'],
+        datasets: [{
+          label: 'Risk Distribution',
+          data: [10, 15, 5],
+          backgroundColor: ['#ef4444','#f59e0b','#10b981']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: { display: true, text: 'Fraud Risk Distribution' }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>
