@@ -166,7 +166,19 @@ function fetchData(){
   renderPriceTable(); renderPredTable(); renderFraudTable(); updateCharts();
 }
 
+// Charts
+let priceChart, volumeChart;
+function updateCharts(){
+  const labels=priceHistory.map(p=>p.date);
+  const closeData=priceHistory.map(p=>p.close);
+  const volumeData=priceHistory.map(p=>p.volume);
 
+  if(priceChart){ priceChart.data.labels=labels; priceChart.data.datasets[0].data=closeData; priceChart.update(); }
+  else{ const ctx=document.getElementById('priceChart').getContext('2d'); priceChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Close Price',data:closeData,borderColor:'#8884d8',fill:false}]},options:{responsive:true}});} 
+
+  if(volumeChart){ volumeChart.data.labels=labels; volumeChart.data.datasets[0].data=volumeData; volumeChart.update(); }
+  else{ const ctx=document.getElementById('volumeChart').getContext('2d'); volumeChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Volume',data:volumeData,backgroundColor:'#82ca9d'}]},options:{responsive:true}});} 
+}
 
 // initial render
 renderPriceTable(); renderPredTable(); renderFraudTable(); updateCharts();
