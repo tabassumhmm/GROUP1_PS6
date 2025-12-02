@@ -589,14 +589,15 @@
       return `<div><label>Value</label><input name="value"></div>`
     }
 
-
+    // ===== Stats =====
+    function refreshStats(){
+      document.getElementById('stat-companies').innerText = state.companies.length;
+      document.getElementById('stat-investors').innerText = state.investors.length;
+      document.getElementById('stat-stocks').innerText = state.stocks.length;
+      document.getElementById('currentUser').innerText = state.users[0]?.id || 'admin';
     }
 
-    // ===== Init =====
-    loadState();
-    if(!state.users || state.users.length===0) seed();
-    refreshStats();
-    render();
+
   </script>
 </body>
 </html>
