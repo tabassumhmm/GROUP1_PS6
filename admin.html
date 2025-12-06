@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin UI — Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa7b2; --accent:#2563eb; --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:linear-gradient(180deg,#071025 0%, #081826 100%);color:#e6eef6}
+    .wrap{display:flex;min-height:100vh}
+    /* Sidebar */
+    nav.sidebar{width:290px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-right:1px solid rgba(255,255,255,0.03)}
+    .brand{font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px;margin-bottom:18px}
+    .brand .logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:inline-flex;align-items:center;justify-content:center}
+    .navlist{margin:0;padding:0;list-style:none;max-height:75vh;overflow:auto}
+    .navlist li{margin:6px 0}
+    .navlist button{width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:none;background:transparent;color:var(--muted);display:flex;gap:10px;align-items:center;cursor:pointer}
+    .navlist button.active,.navlist button:hover{background:var(--glass);color:#fff}
+    .navlist i{width:18px;text-align:center}
+    /* Main */
+    main{flex:1;padding:22px}
+    header.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .searchbar{display:flex;gap:10px;align-items:center}
+    .searchbar input{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:#e6eef6}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.03);box-shadow: 0 6px 18px rgba(2,6,23,0.6)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .stat{display:flex;flex-direction:column}
+    .stat .num{font-size:22px;font-weight:700}
+    .content-area{margin-top:18px}
+    /* Tables */
+    .table-wrap{background:transparent;padding:12px;border-radius:10px}
+    table{width:100%;border-collapse:collapse;color:#dfeefc}
+    th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:13px}
+    th{color:var(--muted);font-weight:600}
+    .controls{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .btn{padding:8px 10px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:white}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .small{padding:6px 8px;font-size:13px}
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center}
+    .modal{width:820px;max-width:95%;background:#061223;border-radius:10px;padding:18px;border:1px solid rgba(255,255,255,0.04)}
+    .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6eef6}
+    textarea{min-height:80px}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+    /* Responsive */
+    @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}nav.sidebar{width:84px}.navlist button span{display:none}.brand span{display:none}}
+    @media (max-width:680px){.grid{grid-template-columns:1fr}.wrap{flex-direction:column}nav.sidebar{order:2;width:100%;display:flex;overflow:auto}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="sidebar card">
+      <div class="brand"><div class="logo"><i class="fa-solid fa-shield-halved"></i></div><span>Admin Console</span></div>
+      <ul class="navlist" id="navList"></ul>
+      <div style="margin-top:12px;color:var(--muted);font-size:13px">Signed in as Admin</div>
+    </nav>
+    <main>
+      <header class="top">
+        <div>
+          <h2 style="margin:0">Dashboard</h2>
+          <div style="color:var(--muted);font-size:13px">System administration & monitoring</div>
+        </div>
+        <div class="searchbar">
+          <input id="globalSearch" placeholder="Search across active table..." />
+          <button class="btn ghost" id="btnRefresh">Refresh</button>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="card stat">
+          <div style="color:var(--muted);font-size:13px">Total Entities</div>
+          <div class="num" id="totalEntities">0</div>
+          <div style="color:var(--muted);font-size:12px">All registered datasets</div>
+        </div>
+        <div class="card stat">
+          <div style="color:var(--muted);font-size:13px">Stored Records</div>
+          <div class="num" id="totalRecords">0</div>
+          <div style="color:var(--muted);font-size:12px">Total rows across all tables</div>
+        </div>
+        <div class="card stat">
+          <div style="color:var(--muted);font-size:13px">System Health</div>
+          <div class="num" id="sysHealth">Good</div>
+          <div style="color:var(--muted);font-size:12px">Basic local health check</div>
+        </div>
+      </section>
+
+      <section class="content-area">
+        <div class="card" id="dashboardCard">
+          <h3>Overview</h3>
+          <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
+            <div style="flex:1 1 420px" class="card table-wrap">
+              <canvas id="chartLine" height="140"></canvas>
+            </div>
+            <div style="width:320px" class="card table-wrap">
+              <canvas id="chartPie" height="140"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="controls">
+            <div id="activeTitle" style="font-weight:700">Select a menu item to manage data</div>
+            <div style="display:flex;gap:8px">
+              <input id="tableSearch" placeholder="Search in table" class="small" />
+              <button id="btnAddRow" class="btn small" disabled>Add</button>
+              <button id="btnExport" class="btn small ghost" disabled>Export JSON</button>
+            </div>
+          </div>
+          <div id="tableContainer"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal card" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">Add Record</h3>
+      <form id="modalForm">
+        <div class="form-grid" id="modalFields"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="modalCancel">Cancel</button>
+          <button type="submit" class="btn" id="modalSave">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /******************************************************************
+     * Generic single-file admin UI
+     * - Dynamically builds CRUD tables with search, add/edit/delete
+     * - Persists to localStorage so actions survive reload
+     * - Renders simple charts using Chart.js
+     *
+     * Schemas derived from user request. Each column has id,label,type,size
+     ******************************************************************/
+
+    const schemas = [
+      {key:'party', title:'Party', cols:[
+        {id:'partyID', label:'partyID', type:'text', size:10},
+        {id:'name', label:'name', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'auditor', title:'Auditor', cols:[
+        {id:'auditorID', label:'auditorID', type:'text', size:10},
+        {id:'auditorname', label:'auditorname', type:'text', size:100},
+        {id:'recommendation', label:'recommendation', type:'textarea', size:500},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'company', title:'Company', cols:[
+        {id:'CpartyID', label:'cparyID', type:'text', size:20},
+        {id:'companyName', label:'companyName', type:'text', size:150},
+        {id:'sector', label:'sector', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'institution', title:'Institution', cols:[
+        {id:'npartyid', label:'npartyid', type:'text', size:20},
+        {id:'name', label:'name', type:'text', size:150},
+        {id:'type', label:'type', type:'text', size:100}
+      ]},
+
+      {key:'it_developer', title:'IT Developer', cols:[
+        {id:'developerid', label:'developer id', type:'text', size:15},
+        {id:'name', label:'name', type:'text', size:100},
+        {id:'emmail', label:'emmail', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'logs', title:'Logs', cols:[
+        {id:'logid', label:'logid', type:'text', size:20},
+        {id:'timestamp', label:'timestamp', type:'date', size:null},
+        {id:'details', label:'details', type:'textarea', size:1000},
+        {id:'developerid', label:'developerid', type:'text', size:15}
+      ]},
+
+      {key:'system_performance', title:'System Performance', cols:[
+        {id:'performanceid', label:'performance id', type:'text', size:10},
+        {id:'status', label:'status', type:'text', size:20},
+        {id:'date', label:'date', type:'date', size:null},
+        {id:'memory_usage', label:'memory usage', type:'textarea', size:1000},
+        {id:'network_latency', label:'network latency', type:'textarea', size:1000},
+        {id:'developerid', label:'developer id', type:'text', size:10}
+      ]},
+
+      {key:'audit_report', title:'Audit Report', cols:[
+        {id:'audit_report_ID', label:'audit_report_ID', type:'text', size:20},
+        {id:'Report_date', label:'Report_date', type:'date'},
+        {id:'auditor_iD', label:'auditor_iD', type:'text', size:10},
+        {id:'CompanyPartyID', label:'CompanyPartyID', type:'text', size:20},
+        {id:'InstituitionpartyID', label:'InstituitionpartyID', type:'text', size:20},
+        {id:'finding_summary', label:'finding_summary', type:'textarea', size:100}
+      ]},
+
+      {key:'data_scientist', title:'Data Scientist', cols:[
+        {id:'dsid', label:'data scientist id', type:'text', size:15},
+        {id:'name', label:'name', type:'text', size:100},
+        {id:'email', label:'email', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'price_history', title:'Price History', cols:[
+        {id:'timestamp', label:'timestamp', type:'datetime-local'},
+        {id:'stockID', label:'stockID', type:'text', size:20},
+        {id:'open', label:'open', type:'number', step:'0.0001'},
+        {id:'close', label:'close', type:'number', step:'0.01'},
+        {id:'low', label:'low', type:'number', step:'0.01'},
+        {id:'volume', label:'volume', type:'number', size:15}
+      ]},
+
+      {key:'fraud_alert', title:'Fraud Alerts', cols:[
+        {id:'transactionID', label:'transactionID', type:'text', size:20},
+        {id:'fraud_alertno', label:'fraud alertno', type:'text', size:20},
+        {id:'deetctiondate', label:'deetctiondate', type:'date'},
+        {id:'riskscore', label:'riskscore', type:'number', step:'0.01'},
+        {id:'fraud', label:'fraud', type:'text', size:20},
+        {id:'report', label:'report', type:'textarea', size:255},
+        {id:'teamid', label:'team id', type:'text', size:15},
+        {id:'datascientistid', label:'data scientist id', type:'text', size:15}
+      ]},
+
+      {key:'prediction', title:'Prediction', cols:[
+        {id:'predictionno', label:'prediction no', type:'text', size:10},
+        {id:'timestamp', label:'timestamp', type:'datetime-local'},
+        {id:'stockID', label:'stockID', type:'text', size:20},
+        {id:'accuracyScore', label:'accuracyScore', type:'number', step:'0.01'},
+        {id:'predictedPrice', label:'predictedPrice', type:'number', step:'0.01'},
+        {id:'datascientistID', label:'datascientistID', type:'number'}
+      ]},
+
+      {key:'investor', title:'Investor', cols:[
+        {id:'IpartyID', label:'IpartyID', type:'text', size:20},
+        {id:'investorname', label:'investor name', type:'text', size:150},
+        {id:'contactinfo', label:'contact info', type:'textarea', size:255},
+        {id:'accounttype', label:'account type', type:'text', size:50}
+      ]},
+
+      {key:'stock', title:'Stock', cols:[
+        {id:'stockID', label:'stockID', type:'text', size:20},
+        {id:'total_shares', label:'total shares', type:'number'},
+        {id:'CpartyID', label:'CpartyID', type:'text', size:20}
+      ]},
+
+      {key:'stock_transaction', title:'Stock Transaction', cols:[
+        {id:'transactionID', label:'transactionID', type:'text', size:20},
+        {id:'timestamp', label:'timestamp', type:'date'},
+        {id:'amount', label:'amount', type:'number', step:'0.01'},
+        {id:'stockID', label:'stockID', type:'text', size:20},
+        {id:'IpartyID', label:'IpartyID', type:'text', size:20},
+        {id:'CompanyStockManagerID', label:'CompanyStockManagerID', type:'text', size:15}
+      ]},
+
+      {key:'company_stock_manager', title:'Company Stock Manager', cols:[
+        {id:'companymanagerid', label:'companymanagerid', type:'text', size:15},
+        {id:'managername', label:'manager name', type:'text', size:100},
+        {id:'email', label:'email', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255},
+        {id:'address', label:'address', type:'textarea', size:255}
+      ]},
+
+      {key:'fraud_detection_team', title:'Fraud Detection Team', cols:[
+        {id:'teamID', label:'teamID', type:'text', size:15},
+        {id:'teamname', label:'teamname', type:'text', size:100},
+        {id:'contactinfo', label:'contactinfo', type:'textarea', size:255}
+      ]},
+
+      {key:'fraud_report', title:'Fraud Report', cols:[
+        {id:'fraud_report_id', label:'fraud report id', type:'text', size:20},
+        {id:'verification_date', label:'verification date', type:'date'},
+        {id:'status', label:'status', type:'text', size:50},
+        {id:'fraud_type', label:'fraud type', type:'text', size:100},
+        {id:'teamid', label:'team id', type:'text', size:15}
+      ]},
+
+      {key:'trade_management_team', title:'Trade Management Team', cols:[
+        {id:'trade_team_Id', label:'trade_team_Id', type:'text', size:15},
+        {id:'contact_info', label:'contact_info', type:'textarea', size:255}
+      ]},
+
+      {key:'trade', title:'Trade', cols:[
+        {id:'trade_ID', label:'trade_ID', type:'text', size:20},
+        {id:'participants', label:'participants', type:'textarea', size:500},
+        {id:'Asset_type', label:'Asset_type', type:'text', size:50},
+        {id:'timestamp', label:'timestamp', type:'date'},
+        {id:'status', label:'status', type:'text', size:50},
+        {id:'Trade_team_ID', label:'Trade_team_ID', type:'text', size:15},
+        {id:'contact_info', label:'contact_info', type:'textarea', size:255},
+        {id:'buyerPartyID', label:'buyerPartyID', type:'text', size:15},
+        {id:'sellerpartyID', label:'sellerpartyID', type:'text', size:15}
+      ]}
+    ];
+
+    // Build navigation from schemas + some fixed menu items
+    const fixedMenu = [
+      'Dashboard','Party','Auditor','Company','Institution','Audit Report','Trade Management Team','Trade','Price History','Prediction','Fraud Detection Team','Fraud Report','Fraud Alerts','Stock','Investor','Company Stock Manager','Stock Transaction','Logs','IT Developer','Data Scientist','System Performance','Logout'
+    ];
+
+    const schemaMap = {};
+    schemas.forEach(s=>schemaMap[s.title.toLowerCase().replace(/\s+/g,'_')]=s);
+
+    const navListEl = document.getElementById('navList');
+    fixedMenu.forEach(item=>{
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.innerHTML = `<i class="fa-regular fa-circle"></i><span>${item}</span>`;
+      btn.dataset.menu = item;
+      btn.addEventListener('click', ()=>onMenuClick(item, btn));
+      li.appendChild(btn);
+      navListEl.appendChild(li);
+    });
+
+    let activeSchema = null;
+    let activeData = [];
+
+    const totalEntitiesEl = document.getElementById('totalEntities');
+    const totalRecordsEl = document.getElementById('totalRecords');
+    const sysHealthEl = document.getElementById('sysHealth');
+
+    function refreshStats(){
+      totalEntitiesEl.textContent = schemas.length;
+      let total=0; schemas.forEach(s=>{const d = loadData(s.key); total+=d.length});
+      totalRecordsEl.textContent = total;
+      sysHealthEl.textContent = 'Good';
+    }
+
+    // Table manager
+    function loadData(key){
+      try{const raw = localStorage.getItem('adm_'+key); return raw?JSON.parse(raw):[] }catch(e){return[]}
+    }
+    function saveData(key, data){ localStorage.setItem('adm_'+key, JSON.stringify(data)); }
+
+    function renderTable(schema){
+      const container = document.getElementById('tableContainer');
+      container.innerHTML = '';
+      const title = document.getElementById('activeTitle'); title.textContent = schema.title;
+      document.getElementById('btnAddRow').disabled = false;
+      document.getElementById('btnExport').disabled = false;
+
+      const tableWrap = document.createElement('div'); tableWrap.className='table-wrap';
+      const table = document.createElement('table');
+      const thead = document.createElement('thead'); const thr = document.createElement('tr');
+      schema.cols.forEach(c=>{const th=document.createElement('th'); th.textContent=c.label; thr.appendChild(th)});
+      thr.appendChild(document.createElement('th')).textContent='Actions';
+      thead.appendChild(thr); table.appendChild(thead);
+      const tbody = document.createElement('tbody'); table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      container.appendChild(tableWrap);
+
+      // load data
+      activeData = loadData(schema.key);
+      function refreshRows(filter){
+        tbody.innerHTML='';
+        const filtered = (filter?activeData.filter(r => Object.values(r).some(v=> (v||'').toString().toLowerCase().includes(filter.toLowerCase()))):activeData);
+        filtered.forEach((row,idx)=>{
+          const tr = document.createElement('tr');
+          schema.cols.forEach(c=>{const td=document.createElement('td'); td.textContent = row[c.id] ?? ''; tr.appendChild(td)});
+          const tdAct=document.createElement('td');
+          const edit = document.createElement('button'); edit.className='btn small ghost'; edit.textContent='Edit'; edit.addEventListener('click', ()=>openModal('Edit', schema, row, idx));
+          const del = document.createElement('button'); del.className='btn small'; del.style.background='#b91c1c'; del.textContent='Delete'; del.addEventListener('click', ()=>{if(confirm('Delete this record?')){activeData.splice(idx,1);saveData(schema.key,activeData);refreshRows(document.getElementById('tableSearch').value); refreshStats(); renderCharts();}});
+          tdAct.appendChild(edit); tdAct.appendChild(del); tr.appendChild(tdAct);
+          tbody.appendChild(tr);
+        });
+      }
+      refreshRows();
+
+      // connect search
+      const tableSearch = document.getElementById('tableSearch'); tableSearch.value='';
+      tableSearch.oninput = (e)=>refreshRows(e.target.value);
+
+      // connect add
+      document.getElementById('btnAddRow').onclick = ()=>openModal('Add', schema);
+      document.getElementById('btnExport').onclick = ()=>{const dataStr = JSON.stringify(activeData, null, 2); const blob = new Blob([dataStr],{type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download = schema.key + '.json'; a.click(); URL.revokeObjectURL(url)};
+
+      // global search connection
+      document.getElementById('globalSearch').oninput = (e)=>{
+        const q = e.target.value; if(!q) return; // naive global search for active table
+        tableSearch.value = q; refreshRows(q);
+      }
+
+      // modal helpers
+      function openModal(mode, schema, data=null, idx=null){
+        const backdrop = document.getElementById('modalBackdrop'); backdrop.style.display='flex'; document.getElementById('modalTitle').textContent = mode + ' — ' + schema.title;
+        const fields = document.getElementById('modalFields'); fields.innerHTML='';
+        schema.cols.forEach(c=>{
+          const wrap = document.createElement('div');
+          const label = document.createElement('label'); label.textContent = c.label;
+          wrap.appendChild(label);
+          let input;
+          if(c.type==='textarea'){
+            input = document.createElement('textarea');
+            input.maxLength = c.size || 2000;
+          } else {
+            input = document.createElement('input');
+            input.type = c.type || 'text';
+            if(c.step) input.step = c.step;
+            if(c.type==='number') input.inputMode='decimal';
+            if(c.type==='datetime-local') input.type='datetime-local';
+          }
+          input.name = c.id; input.id = 'fld_'+c.id; if(c.size) input.maxLength = c.size;
+          if(data && data[c.id] !== undefined) input.value = data[c.id];
+          wrap.appendChild(input); fields.appendChild(wrap);
+        });
+
+        // attach handlers
+        const form = document.getElementById('modalForm'); form.onsubmit = (ev)=>{
+          ev.preventDefault(); const formData = new FormData(form); const obj = {};
+          schema.cols.forEach(c=>{
+            let v = formData.get(c.id);
+            if(c.type==='number') v = v?Number(v):null;
+            obj[c.id]=v;
+          });
+          if(mode==='Add'){ activeData.push(obj); }
+          else if(mode==='Edit'){ if(idx!==null) activeData[idx]=obj; }
+          saveData(schema.key, activeData); backdrop.style.display='none'; refreshRows(document.getElementById('tableSearch').value); refreshStats(); renderCharts();
+        };
+
+        document.getElementById('modalCancel').onclick = ()=>{document.getElementById('modalBackdrop').style.display='none'};
+      }
+
+    }
+
+    function onMenuClick(item, btn){
+      // handle Logout
+      document.querySelectorAll('.navlist button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if(item==='Dashboard'){ document.getElementById('dashboardCard').style.display='block'; document.getElementById('activeTitle').textContent='Dashboard Overview'; document.getElementById('tableContainer').innerHTML=''; document.getElementById('btnAddRow').disabled=true; document.getElementById('btnExport').disabled=true; return; }
+      if(item==='Logout'){ document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#e6eef6"><div style="text-align:center"><h2>Logged out</h2><p>You have been logged out.</p></div></div>'; return; }
+
+      document.getElementById('dashboardCard').style.display='none';
+      // map item to schema key
+      const k = item.toLowerCase().replace(/\s+/g,'_');
+      const schema = schemaMap[k];
+      if(!schema){ document.getElementById('tableContainer').innerHTML = '<div style="padding:18px;color:var(--muted)">No data model for this menu yet.</div>'; document.getElementById('btnAddRow').disabled=true; document.getElementById('btnExport').disabled=true; return; }
+      activeSchema = schema; renderTable(schema);
+    }
+
+    // Prepare mapping: add titles for schemaMap for keys from schemas
+    schemas.forEach(s=>{ schemaMap[s.key] = s; schemaMap[s.title.toLowerCase().replace(/\s+/g,'_')] = s; });
+
+    // Set initial dashboard charts
+    let lineChart=null, pieChart=null;
+    function renderCharts(){
+      // pie: counts per entity (top 6)
+      const counts = schemas.map(s=>({k:s.title, v: loadData(s.key).length})).sort((a,b)=>b.v-a.v).slice(0,8);
+      const ctxPie = document.getElementById('chartPie').getContext('2d');
+      if(pieChart) pieChart.destroy();
+      pieChart = new Chart(ctxPie, {type:'pie', data:{labels:counts.map(x=>x.k), datasets:[{data:counts.map(x=>x.v)}]}});
+
+      // line chart: sample price history last 10
+      const ph = loadData('price_history');
+      const last = ph.slice(-10);
+      const labels = last.map(r=>r.timestamp||'');
+      const closes = last.map(r=>Number(r.close)||0);
+      const ctxLine = document.getElementById('chartLine').getContext('2d');
+      if(lineChart) lineChart.destroy();
+      lineChart = new Chart(ctxLine, {type:'line', data:{labels, datasets:[{label:'Close Price', data:closes, fill:false}]}, options:{scales:{y:{beginAtZero:true}}}});
+
+      refreshStats();
+    }
+
+    // initial
+    renderCharts();
+    // set Dashboard active
+    document.querySelector('.navlist button').click();
+
+  </script>
+</body>
+</html>
